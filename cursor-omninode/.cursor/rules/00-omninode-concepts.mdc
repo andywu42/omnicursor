@@ -1,0 +1,67 @@
+---
+description: OmniNode vocabulary, pipeline stages, and skill-bucket classification. Always active — establishes shared terminology before any other rule fires.
+globs:
+alwaysApply: true
+---
+
+# OmniNode Concepts — Always-On Reference
+
+This rule is always active. It defines vocabulary, the code-generation pipeline, and the 3-bucket classification table. No external service calls occur in this rule.
+
+---
+
+## ONEX Vocabulary
+
+| Term | Definition |
+|------|-----------|
+| **skill** | A reusable methodology document (SKILL.md) that instructs an AI agent how to perform a multi-step process. Skills are not code — they are behavior specifications. |
+| **node** | A self-contained execution unit in the ONEX runtime. Nodes have contracts (inputs/outputs), handlers (business logic), and emit events to Kafka. |
+| **handler** | The Python class that implements a node's business logic. Handlers are called by the runtime with validated input and return validated output. |
+| **contract** | A YAML file declaring a node's required config, input schema, output schema, and Kafka topics. The contract is the source of truth for what a node does. |
+| **hook** | A script that fires on Claude Code lifecycle events: SessionStart, UserPromptSubmit, PostToolUse, SessionEnd. Hooks must never block the UI. |
+| **worktree** | A git worktree — an isolated checkout of a branch used for feature development. All OmniNode work happens in worktrees, never directly in the canonical repo. |
+| **epic** | A Linear issue grouping multiple related tickets. Epics span repos; tickets are atomic (one repo, one PR). |
+
+---
+
+## The 5-Stage Code Generation Pipeline
+
+```
+1. BRAINSTORM   → Refine rough idea into fully-formed design (design doc)
+2. PLAN         → Decompose design into bite-sized implementation tasks (plan doc)
+3. TICKET       → Generate a ticket contract template from the plan (YAML template)
+4. DECOMPOSE    → Break epic into child tickets in Linear (requires Linear MCP)
+5. EXECUTE      → Route tickets to agents for implementation (requires Kafka routing)
+```
+
+Rules in this starter pack cover stages 1–3 (Buckets 1–2).
+Stages 4–5 require external services and are covered by the adapter stub only (Bucket 3).
+
+---
+
+## 3-Bucket Classification Table
+
+**Classification rule (one sentence per bucket):**
+
+| Bucket | Rule | Examples |
+|--------|------|---------|
+| **Bucket 1 — Pure Methodology** | No external service call required; may write local files as output but does not read external state to function. | `brainstorming`, `writing-plans` |
+| **Bucket 2 — Local-Data Hybrid** | Reads bounded local files or cwd context to produce output; does not require any external service. | `plan-ticket` |
+| **Bucket 3 — External Integration** | Requires at least one external service call (Linear MCP, Kafka, or Python validator with omnibase_core importable). | `decompose-epic`, `generating-ticket-contract`, `linear`, `executing-plans` |
+
+---
+
+## Out-of-Scope Boundary
+
+> **Rules in this starter pack CANNOT call Linear or Kafka.**
+>
+> If a task requires Linear ticket creation, Kafka event emission, or Python validation with omnibase_core, **stop** and write an adapter stub instead (see rule `20-adapter-stub`).
+>
+> Do not attempt to simulate Linear API calls, mock Kafka topics, or import omnibase_core in Cursor rules. These are Bucket 3 concerns outside this starter pack's scope.
+
+---
+
+## File Writing Outputs
+
+Writing to `docs/plans/` is an **output action**, not an external dependency.
+Bucket 1 and Bucket 2 rules may freely write files to `docs/plans/`. This does not make them Bucket 3.
