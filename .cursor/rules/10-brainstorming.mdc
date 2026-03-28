@@ -103,3 +103,15 @@ Replace `YYYY-MM-DD` with the actual date and `<topic>` with the actual slug use
 - [ ] Design presented in 200–300 word sections with check-in after each
 - [ ] Final message contains the literal handoff line with the actual artifact path
 - [ ] Design file exists at `docs/plans/YYYY-MM-DD-<topic>-design.md` after session
+
+---
+
+## MCP Integration (Optional)
+
+When the OmniCursor MCP server is available, enhance this rule with structured backend support:
+
+1. **At the start of the session**, call `get_agent_context` with `category="brainstorming"` to receive routing instructions and the recommended skill name.
+2. **If deeper methodology is needed**, call `invoke_skill` with `skill_name="brainstorming"` to load the full skill workflow document.
+3. **After producing the final design**, call `check_compliance` with `skill_name="brainstorming"` and a summary of what was produced. Review any missing checks and address them before handing off.
+
+These MCP calls are optional enhancements. The rule works without them — the preserved methodology above is the primary workflow.

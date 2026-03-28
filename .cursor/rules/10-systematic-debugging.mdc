@@ -1,0 +1,36 @@
+---
+description: Activates when the user asks to debug, investigate a failure, find a root cause, fix a regression, inspect a traceback, or work through a flaky test. Uses OmniCursor MCP tools without replacing the preserved starter-kit rules.
+globs:
+alwaysApply: false
+---
+
+# Systematic Debugging
+
+This rule complements the preserved OmniNode starter-kit rules.
+It does not replace `00-omninode-concepts`, `01-codebase-research`, `10-brainstorming`, `11-writing-plans`, `12-plan-ticket`, or `20-adapter-stub`.
+
+## Routing Contract
+
+Cursor has no `UserPromptSubmit` or `PreToolUse` hook.
+Approximate routing like this:
+
+1. Self-classify the request as `debugging`
+2. Call MCP tool `get_agent_context` with `category="debugging"`
+3. If the returned `recommended_skill` is non-null, call MCP tool `invoke_skill`
+4. Follow the returned instructions and loaded skill content
+
+## Working Style
+
+- Keep the always-on starter-kit rules active for shared vocabulary and bounded research
+- Start from the observed symptom, failing test, traceback, or regression
+- Reproduce before fixing whenever a deterministic repro exists
+- Test one hypothesis at a time
+- Prefer the smallest verified fix over a redesign
+
+## Handoffs
+
+- If the issue becomes feature ideation, hand off to `10-brainstorming`
+- If the issue becomes implementation planning, hand off to `11-writing-plans`
+- If the issue becomes ticket generation, hand off to `12-plan-ticket`
+- If the issue depends on external systems, hand off to `20-adapter-stub`
+

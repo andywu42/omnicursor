@@ -150,3 +150,15 @@ This adapter stub is a **placeholder** for Stage 2 work. Stage 2 requires:
 - The frozen adapter contract endpoint deployed at `localhost:8085` (or configured URL)
 
 See `docs/ARCHITECTURE.md` → "Frozen Adapter Contract" for the full specification students must implement against.
+
+---
+
+## MCP Integration (Optional)
+
+When the OmniCursor MCP server is available, enhance this rule with structured backend support:
+
+1. **At the start of the session**, call `get_agent_context` with `category="adapter"` to receive routing instructions and the recommended skill name.
+2. **If deeper methodology is needed**, call `invoke_skill` with `skill_name="adapter-stub"` to load the full skill workflow document.
+3. **After producing the adapter stub output**, call `check_compliance` with `skill_name="adapter-stub"` and a summary of what was produced. Review any missing checks and address them before handing off.
+
+These MCP calls are optional enhancements. The rule works without them — the preserved methodology above is the primary workflow.
