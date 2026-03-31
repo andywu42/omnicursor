@@ -64,6 +64,10 @@ All hooks use stdlib only (no pip dependencies). Shared utilities live in `_comm
 | `plan-ticket` | Generate YAML ticket contract templates with repo detection |
 | `adapter-stub` | Bucket 3 dry-run stubs with fail-soft behavior |
 
+## Directory guides
+
+Major folders include their own **`README.md`** (e.g. `.cursor/`, `docs/`, `skills/`, `src/omnicursor/`, `tests/`) so you can orient from any path in the tree.
+
 ## Repository Layout
 
 ```text
