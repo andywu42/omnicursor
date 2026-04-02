@@ -75,6 +75,10 @@ All hooks use stdlib only (no pip dependencies).
 
 Each skill has a corresponding compliance registry entry in `src/omnicursor/compliance.py` with 3–5 keyword-based checks.
 
+## Directory guides
+
+Major folders include their own **`README.md`** (e.g. `.cursor/`, `docs/`, `skills/`, `src/omnicursor/`, `tests/`) so you can orient from any path in the tree.
+
 ## Repository Layout
 
 ```text
