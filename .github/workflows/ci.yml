@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" ruff
+
+      - name: Lint
+        run: ruff check src/ tests/ .cursor/hooks/
+
+      - name: Test
+        run: pytest tests/ -v
+
+      - name: Validate skill compliance coverage
+        run: |
+          python - <<'EOF'
+          import pathlib, sys
+          skills = {f.stem for f in pathlib.Path("skills").glob("*.md") if f.name != "README.md"}
+          compliance = pathlib.Path("src/omnicursor/compliance.py").read_text()
+          missing = [s for s in sorted(skills) if s not in compliance]
+          if missing:
+              print(f"Skills missing compliance entries: {missing}")
+              sys.exit(1)
+          print(f"All {len(skills)} skills have compliance entries.")
+          EOF
