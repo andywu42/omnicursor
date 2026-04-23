@@ -14,7 +14,7 @@ This file serves **two roles**:
 | **Skills** | `skills/*.md` | Methodology documents on disk. |
 | **Library** | `src/omnicursor/` | `agents`, `skills` loader, `compliance`, `node_contracts` — for **tests, CI, and optional scripting**; optional integration with the wider OmniNode stack via HTTP/subprocess/Kafka is described in [`dev/OMNICURSOR_SYSTEM_DESIGN.md`](./dev/OMNICURSOR_SYSTEM_DESIGN.md). |
 
-Optional integrations (e.g. Linear) use Cursor’s MCP and rules as documented in the repo. Deeper developer notes: [`dev/README.md`](./dev/README.md), [`../CLAUDE.md`](../CLAUDE.md).
+Optional integrations (e.g. Linear) use Cursor’s MCP and rules as documented in the repo. Deeper developer notes: [`dev/README.md`](./dev/README.md), [`../cursor.md`](../cursor.md).
 
 ---
 

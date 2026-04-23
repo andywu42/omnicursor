@@ -22,7 +22,7 @@ The reference implementation is `omniclaude-main/` (read-only). We selectively a
 When documents disagree:
 
 1. Actual current codebase behavior
-2. `CLAUDE.md` — repo conventions and architecture overview
+2. `cursor.md` — repo conventions and architecture overview
 3. `docs/dev/OMNICURSOR_IMPLEMENTATION_BRIEF.md` — implementation decisions
 4. `omnicursor-team-guidance.md` — demo-focused guidance with code examples (local / gitignored)
 5. `omniclaude-main/` — reference library, never a source of mandatory parity
@@ -220,7 +220,7 @@ Paste this as a preamble:
 
 ```
 Read these files to build working context:
-- CLAUDE.md (conventions and architecture overview)
+- cursor.md (conventions and architecture overview)
 - docs/dev/HANDOFF.md (current state and remaining tasks)
 - docs/dev/MIGRATION_PHASES_HANDOFF.md (port track: agents, skills, nodes — if that is your scope)
 - docs/dev/OMNICURSOR_IMPLEMENTATION_BRIEF.md (implementation decisions)

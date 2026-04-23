@@ -77,7 +77,7 @@ OmniCursor/
 ├── tests/
 ├── omniclaude-main/        # Read-only OmniClaude reference
 ├── pyproject.toml
-└── CLAUDE.md
+└── cursor.md
 ```
 
 ## Tests
@@ -92,7 +92,7 @@ ruff check src/ tests/ .cursor/hooks/
 
 ## Documentation
 
-- [`CLAUDE.md`](./CLAUDE.md) — Conventions and architecture
+- [`cursor.md`](./cursor.md) — Conventions and architecture
 - [`docs/QUICKSTART.md`](./docs/QUICKSTART.md) — Setup, hooks, skills
 - [`docs/dev/HANDOFF.md`](./docs/dev/HANDOFF.md) — Implementation state
 - [`OmniCursor_DoD_Rubric.md`](./OmniCursor_DoD_Rubric.md) — Capstone rubric
