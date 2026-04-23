@@ -41,7 +41,7 @@ When the documents disagree, use this order:
    - [`OmniCursor_Architecture_Visual_Guide55.pages`](../../OmniCursor_Architecture_Visual_Guide55.pages)
 4. Repo architecture and starter-kit constraints:
    - [`README.md`](../../README.md)
-   - [`CLAUDE.md`](../../CLAUDE.md)
+   - [`cursor.md`](../../cursor.md)
    - [`.cursor/rules/README.md`](../../.cursor/rules/README.md)
 5. `omniclaude-main/` as a **reference library**, not a source of mandatory parity
 

@@ -66,7 +66,7 @@ Every ported rule must include an Invariants section. Required invariants for al
 1. **One question per message.** A message that contains two or more questions is non-conformant.
 2. **Announce before read.** Any file content used must be preceded by an announcement line naming that file.
 3. **Deterministic handoff.** The handoff sentence must reference the saved artifact path, not "paste above" or a paraphrase.
-4. **Bounded research only.** File reads limited to: README.md, CLAUDE.md, docs/INDEX.md, and one named directory listing.
+4. **Bounded research only.** File reads limited to: README.md, cursor.md, docs/INDEX.md, and one named directory listing.
 5. **No phantom callables.** Do not reference helper functions, validators, or APIs that are not real tools available in Cursor.
 
 Additional invariants may be added per skill but cannot remove the above.

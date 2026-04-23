@@ -10,4 +10,4 @@ This directory holds everything Cursor loads for **OmniCursor**: AI behavior rul
 
 **Also here:** [`hooks.json`](./hooks.json) — maps Cursor lifecycle events (`beforeSubmitPrompt`, `beforeShellExecution`, etc.) to hook scripts.
 
-**Docs:** [Root README](../README.md), [Quickstart](../docs/QUICKSTART.md), [CLAUDE.md](../CLAUDE.md) (commands and constraints).
+**Docs:** [Root README](../README.md), [Quickstart](../docs/QUICKSTART.md), [cursor.md](../cursor.md) (commands and constraints).
