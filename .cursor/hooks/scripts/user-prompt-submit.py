@@ -56,6 +56,8 @@ from _common import (
 )
 from agent_scoring import HARD_FLOOR, score_agent
 from emit_client import send_event
+
+_RECAP_PATH: Path = Path.home() / ".omnicursor" / "last-recap.md"
 from pattern_loader import get_pattern_cache
 from prompt_pattern_selection import (
     MAX_PATTERNS,
@@ -536,7 +538,15 @@ def main() -> None:
     except Exception:
         pass
 
-    write_context(build_context(
+    recap_prefix = ""
+    if _RECAP_PATH.exists():
+        try:
+            recap_prefix = _RECAP_PATH.read_text(encoding="utf-8") + "\n\n"
+            _RECAP_PATH.unlink()
+        except OSError:
+            recap_prefix = ""
+
+    write_context(recap_prefix + build_context(
         agent_name, score, reason, patterns, prompt, conversation_id,
         agent_config=agent_config,
         correlation_id=correlation_id,
