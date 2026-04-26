@@ -206,6 +206,11 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "test", "baseline", "passing", "clean", "ready",
         ]),
     ],
+    "recap": [
+        ("states_outcome", ["outcome", "success", "failed", "abandoned", "unknown"]),
+        ("lists_files_edited", ["files edited", "file edited"]),
+        ("suggests_next_steps", ["next step", "suggested", "suggest"]),
+    ],
 }
 
 

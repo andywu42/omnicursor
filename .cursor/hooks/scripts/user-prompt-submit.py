@@ -56,8 +56,6 @@ from _common import (
 )
 from agent_scoring import HARD_FLOOR, score_agent
 from emit_client import send_event
-
-_RECAP_PATH: Path = Path.home() / ".omnicursor" / "last-recap.md"
 from pattern_loader import get_pattern_cache
 from prompt_pattern_selection import (
     MAX_PATTERNS,
@@ -68,6 +66,8 @@ from prompt_pattern_selection import (
 
 # Private names kept for hook self-tests (tests/test_suite_event1_prompt.py).
 _score_pattern_relevance = score_pattern_relevance
+
+_RECAP_PATH: Path = Path.home() / ".omnicursor" / "last-recap.md"
 _filter_patterns_by_relevance = filter_patterns_by_relevance
 
 

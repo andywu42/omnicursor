@@ -48,11 +48,19 @@ def test_available_skills_lists_all(repository: SkillRepository) -> None:
         "plan-ticket",
         "pr-polish",
         "pr-review",
+        "recap",
         "systematic-debugging",
         "using-git-worktrees",
         "writing-plans",
     ]
     assert available == expected
+
+
+def test_load_recap_skill(repository: SkillRepository) -> None:
+    skill = repository.load_skill("recap")
+    assert skill.skill_name == "recap"
+    assert skill.path == ".cursor/skills/recap/SKILL.md"
+    assert "Session Recap" in skill.content
 
 
 def test_load_nonexistent_skill_raises(repository: SkillRepository) -> None:

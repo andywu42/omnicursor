@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import omnicursor.file_edit as _file_edit  # canonical source; patch subprocess here
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -26,9 +27,6 @@ def _load(name: str, path: Path) -> Any:
     sys.modules[name] = mod
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
     return mod
-
-
-import omnicursor.file_edit as _file_edit  # canonical source; patch subprocess here
 
 _lib_common = _load("_common", _LIB / "_common.py")
 _mod = _load("post_edit", _SCRIPTS / "post-edit.py")

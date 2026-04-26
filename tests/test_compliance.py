@@ -76,6 +76,7 @@ def test_all_skills_have_registry_entries() -> None:
         "insights-to-plan",
         "handoff",
         "using-git-worktrees",
+        "recap",
     }
     assert set(COMPLIANCE_REGISTRY.keys()) == expected
 
@@ -153,3 +154,25 @@ def test_hostile_reviewer_missing_verdict() -> None:
     result = check_compliance("hostile-reviewer", summary)
     assert result.compliant is False
     assert "states_verdict" in result.missing
+
+
+def test_recap_fully_compliant() -> None:
+    summary = (
+        "Session outcome was success. "
+        "Files edited: src/foo.py, src/bar.py. "
+        "Suggested next steps: continue the refactor."
+    )
+    result = check_compliance("recap", summary)
+    assert result.compliant is True
+    assert result.missing == []
+
+
+def test_recap_missing_next_steps() -> None:
+    summary = (
+        "Session outcome was success. "
+        "Files edited: src/foo.py."
+    )
+    result = check_compliance("recap", summary)
+    assert result.compliant is False
+    assert "suggests_next_steps" in result.missing
+

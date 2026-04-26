@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import omnicursor.shell_guard as _shell_guard  # canonical source; patch _load_dod_config here
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -26,9 +27,6 @@ def _load(name: str, path: Path) -> Any:
     sys.modules[name] = mod
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
     return mod
-
-
-import omnicursor.shell_guard as _shell_guard  # canonical source; patch _load_dod_config here
 
 _lib_common = _load("_common", _LIB / "_common.py")
 _mod = _load("shell_guard", _SCRIPTS / "shell-guard.py")
