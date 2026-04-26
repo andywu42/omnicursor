@@ -127,3 +127,19 @@ def derive_session_outcome(
         )
 
     return ("unknown", "Insufficient signal to classify session outcome")
+
+
+def format_recap(summary: dict) -> str:
+    """Generate a recap text block from an aggregate_session() result dict."""
+    shell = summary.get("shell_commands", {})
+    languages = summary.get("languages", [])
+    lines = [
+        "## Session Recap (auto)",
+        f"**Outcome:** {summary.get('session_outcome', 'unknown')}",
+        f"**Files edited:** {summary.get('files_edited', 0)}",
+        f"**Prompts classified:** {summary.get('prompts_classified', 0)}",
+        f"**Shell commands:** {shell.get('allowed', 0)} allowed, "
+        f"{shell.get('warned', 0)} warned, {shell.get('denied', 0)} denied",
+        f"**Languages:** {', '.join(languages) if languages else 'none'}",
+    ]
+    return "\n".join(lines)
