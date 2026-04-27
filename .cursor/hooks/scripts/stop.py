@@ -31,6 +31,7 @@ from _common import (  # noqa: E402
     write_stdout,
 )
 from emit_client import send_event  # noqa: E402
+from omnicursor.pattern_writer import write_session_patterns  # noqa: E402
 from omnicursor.session_outcome import derive_session_outcome, format_recap  # noqa: E402
 from pattern_sync import sync_learned_patterns  # noqa: E402
 
@@ -161,6 +162,14 @@ def main() -> None:
             _RECAP_PATH.write_text(format_recap(summary), encoding="utf-8")
         except OSError:
             pass
+
+        if summary["session_outcome"] == "success":
+            events = _load_events(conversation_id)
+            write_session_patterns(
+                LEARNED_PATTERNS_FILE,
+                events,
+                summary["files_edited"],
+            )
 
         send_event(
             "onex.evt.omnicursor.session-ended.v1",
