@@ -1162,10 +1162,10 @@ class TestPriorSessionContext:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(_mod, "SESSIONS_DIR", tmp_path)
-        old = self._make_summary(tmp_path, "old-conv")
+        self._make_summary(tmp_path, "old-conv")
         import time as _time
         _time.sleep(0.01)
-        new = self._make_summary(tmp_path, "new-conv-prior")  # noqa: F841
+        self._make_summary(tmp_path, "new-conv-prior")
         result = _mod._load_prior_session_summary("current-conv")
         assert result is not None
         assert result["conversation_id"] == "new-conv-prior"
