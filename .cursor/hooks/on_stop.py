@@ -22,9 +22,9 @@ SRC_DIR = REPO_ROOT / "src"
 sys.path.insert(0, str(HOOKS_DIR))
 sys.path.insert(0, str(SRC_DIR))
 
-import _common
-from _common import ensure_dirs, log_event, read_stdin, write_stdout
-from omnicursor.pattern_writer import write_session_patterns
+import _common  # noqa: E402
+from _common import ensure_dirs, log_event, read_stdin, write_stdout  # noqa: E402
+from omnicursor.pattern_writer import write_session_patterns  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
