@@ -1,4 +1,4 @@
-# Handoff
+# onex:handoff
 
 Use this skill when ending a session and you want the next session to pick up where you left off. The goal is to capture enough context for seamless session continuity.
 

@@ -1,9 +1,9 @@
-# Plan to Tickets
+# onex:plan-to-tickets
 
 Parse a plan file and batch-create Linear tickets — one per `## Task N:` section.
 Called automatically by execute_plan, or invoked directly.
 
-**Announce at start:** "I'm using the plan-to-tickets skill."
+**Announce at start:** "I'm using the onex:plan-to-tickets skill."
 
 ## Usage
 

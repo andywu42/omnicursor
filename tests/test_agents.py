@@ -12,28 +12,28 @@ from omnicursor.agents import (
 def test_debugging_category() -> None:
     ctx = get_agent_context("debugging")
     assert ctx.agent_name == "systematic-debugger"
-    assert ctx.recommended_skill == "systematic-debugging"
+    assert ctx.recommended_skill == "onex:systematic-debugging"
     assert ctx.description != ""
 
 
 def test_brainstorming_category() -> None:
     ctx = get_agent_context("brainstorming")
     assert ctx.agent_name == "brainstorming-guide"
-    assert ctx.recommended_skill == "brainstorming"
+    assert ctx.recommended_skill == "onex:brainstorming"
     assert ctx.description != ""
 
 
 def test_planning_category() -> None:
     ctx = get_agent_context("planning")
     assert ctx.agent_name == "plan-writer"
-    assert ctx.recommended_skill == "writing-plans"
+    assert ctx.recommended_skill == "onex:writing-plans"
     assert ctx.description != ""
 
 
 def test_ticketing_category() -> None:
     ctx = get_agent_context("ticketing")
     assert ctx.agent_name == "ticket-planner"
-    assert ctx.recommended_skill == "plan-ticket"
+    assert ctx.recommended_skill == "onex:plan-ticket"
     assert ctx.description != ""
 
 
@@ -126,7 +126,7 @@ def test_match_agent_empty_prompt_returns_default() -> None:
 def test_get_agent_context_debugging_still_works() -> None:
     ctx = get_agent_context("debugging")
     assert ctx.agent_name != ""
-    assert ctx.recommended_skill == "systematic-debugging"
+    assert ctx.recommended_skill == "onex:systematic-debugging"
 
 
 def test_get_agent_context_brainstorming_still_works() -> None:
@@ -153,10 +153,10 @@ def test_get_agent_context_new_aliases() -> None:
 
 def test_get_agent_context_review_recommends_pr_review_skill() -> None:
     ctx = get_agent_context("review")
-    assert ctx.recommended_skill == "pr-review"
+    assert ctx.recommended_skill == "onex:pr-review"
 
 
 def test_get_agent_context_handoff_recommends_handoff_skill() -> None:
     ctx = get_agent_context("handoff")
     assert ctx.agent_name == "handoff-guide"
-    assert ctx.recommended_skill == "handoff"
+    assert ctx.recommended_skill == "onex:handoff"

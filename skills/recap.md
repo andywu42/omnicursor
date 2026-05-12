@@ -1,4 +1,4 @@
-# Recap
+# onex:recap
 
 Summarize the current Cursor session inline in chat.
 

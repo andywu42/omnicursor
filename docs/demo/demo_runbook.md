@@ -305,10 +305,12 @@ comment as a demo moment — autonomous error reporting, no human intervention.
 
 ## Quick reference — skill commands
 
-| Command | What it does |
-|---|---|
-| `/plan-ticket <description>` | Generates YAML contract, creates Linear ticket |
-| `/plan-to-tickets <plan-file>` | Creates one epic + one ticket per plan task |
-| `/execute-plan <plan-file>` | Full pipeline: review → tickets → implement → PR |
-| `/hostile-reviewer --pr <N> --repo <owner/repo>` | Adversarial multi-model PR review |
-| `/recap` | Summarises the current session before handing off |
+Skill ids use the **`onex:<slug>`** namespace; chat commands below are unchanged.
+
+| Command | Skill id | What it does |
+|---|---|---|
+| `/plan-ticket <description>` | onex:plan-ticket | Generates YAML contract, creates Linear ticket |
+| `/plan-to-tickets <plan-file>` | onex:plan-to-tickets | Creates one epic + one ticket per plan task |
+| `/execute-plan <plan-file>` | onex:execute-plan | Full pipeline: review → tickets → implement → PR |
+| `/hostile-reviewer --pr <N> --repo <owner/repo>` | onex:hostile-reviewer | Adversarial multi-model PR review |
+| `/recap` | onex:recap | Summarises the current session before handing off |

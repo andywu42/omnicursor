@@ -1,4 +1,4 @@
-# Using Git Worktrees
+# onex:using-git-worktrees
 
 Use this skill when starting feature work that needs isolation from the current workspace, or when you need to work on multiple branches simultaneously. The goal is to create an isolated worktree with a verified clean baseline.
 

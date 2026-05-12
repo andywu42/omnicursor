@@ -45,8 +45,8 @@ Stages 4–5 require external services (Bucket 3); they are outside in-repo Curs
 
 | Bucket | Rule | Examples |
 |--------|------|---------|
-| **Bucket 1 — Pure Methodology** | No external service call required; may write local files as output but does not read external state to function. | `brainstorming`, `writing-plans` |
-| **Bucket 2 — Local-Data Hybrid** | Reads bounded local files or cwd context to produce output; does not require any external service. | `plan-ticket` |
+| **Bucket 1 — Pure Methodology** | No external service call required; may write local files as output but does not read external state to function. | `onex:brainstorming`, `onex:writing-plans` |
+| **Bucket 2 — Local-Data Hybrid** | Reads bounded local files or cwd context to produce output; does not require any external service. | `onex:plan-ticket` |
 | **Bucket 3 — External Integration** | Requires at least one external service call (Linear MCP, Kafka, or Python validator with omnibase_core importable). | `decompose-epic`, `generating-ticket-contract`, `linear`, `executing-plans` |
 
 ---

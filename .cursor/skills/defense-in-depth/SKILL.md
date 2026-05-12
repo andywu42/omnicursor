@@ -1,4 +1,4 @@
-# Defense in Depth
+# onex:defense-in-depth
 
 Use this skill when fixing a bug caused by invalid data reaching deep into execution. The goal is to add validation at every layer the data passes through, making the bug structurally impossible to reproduce.
 

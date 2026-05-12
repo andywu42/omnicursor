@@ -14,5 +14,5 @@
     "Apply the smallest verified fix — avoid unrelated cleanup",
     "Verify twice: narrowest reproducer first, then broader regression check"
   ],
-  "recommended_skill": "systematic-debugging"
+  "recommended_skill": "onex:systematic-debugging"
 }

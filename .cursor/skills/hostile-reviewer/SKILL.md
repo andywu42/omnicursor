@@ -1,3 +1,4 @@
+# onex:hostile-reviewer
 ---
 description: Multi-model adversarial code review (Gemini, Codex, Qwen3-Coder, DeepSeek-R1, Claude) with weighted-union finding aggregation and iterative convergence. Cannot rubber-stamp. Use --static for static-analysis-only mode (dead code, missing error handling, stubs, Kafka wiring, schema mismatches, hardcoded values, missing tests).
 mode: both
@@ -66,7 +67,7 @@ args:
 
 # hostile-reviewer
 
-**Announce at start:** "I'm using the hostile-reviewer skill."
+**Announce at start:** "I'm using the onex:hostile-reviewer skill."
 
 ## Architecture
 

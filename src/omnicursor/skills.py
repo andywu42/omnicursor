@@ -8,6 +8,23 @@ from typing import List
 from .db import REPO_ROOT, SKILLS_DIR
 from .schemas import SkillDocument
 
+# Human-facing skill IDs in this repo use an ONEX-style namespace prefix.
+# Directory names under .cursor/skills/ remain slug-only (no colon).
+SKILL_ID_PREFIX = "onex:"
+
+
+def skill_slug(skill_name: str) -> str:
+    """Return filesystem slug for a skill, stripping a leading onex: prefix if present."""
+    s = skill_name.strip()
+    if s.startswith(SKILL_ID_PREFIX):
+        return s[len(SKILL_ID_PREFIX) :]
+    return s
+
+
+def canonical_skill_id(skill_name: str) -> str:
+    """Return the canonical registry / API id: ``onex:<slug>``."""
+    return f"{SKILL_ID_PREFIX}{skill_slug(skill_name)}"
+
 
 class SkillRepository:
     """Load skills from .cursor/skills/<name>/SKILL.md (Cursor-native format)."""
@@ -16,20 +33,21 @@ class SkillRepository:
         self.skills_dir = skills_dir
 
     def available_skills(self) -> List[str]:
-        """Return sorted list of skill names (directory names containing SKILL.md)."""
+        """Return sorted list of canonical skill ids (onex:<slug>) for each SKILL.md dir."""
         if not self.skills_dir.is_dir():
             return []
         return sorted(
-            d.name
+            canonical_skill_id(d.name)
             for d in self.skills_dir.iterdir()
             if d.is_dir() and (d / "SKILL.md").exists()
         )
 
     def resolve_path(self, skill_name: str) -> Path:
-        return self.skills_dir / skill_name / "SKILL.md"
+        return self.skills_dir / skill_slug(skill_name) / "SKILL.md"
 
     def load_skill(self, skill_name: str) -> SkillDocument:
-        path = self.resolve_path(skill_name)
+        slug = skill_slug(skill_name)
+        path = self.resolve_path(slug)
         if not path.exists():
             available = ", ".join(self.available_skills()) or "(none)"
             raise FileNotFoundError(
@@ -38,7 +56,7 @@ class SkillRepository:
             )
 
         return SkillDocument(
-            skill_name=skill_name,
+            skill_name=canonical_skill_id(slug),
             path=str(path.relative_to(REPO_ROOT)),
             content=path.read_text(encoding="utf-8"),
         )

@@ -1,4 +1,4 @@
-# Merge Planner
+# onex:merge-planner
 
 Use this skill when multiple PRs target the same branch and you need to decide merge order, or when a PR has complex dependencies that affect merge safety. The goal is to classify PRs and produce a priority-ordered merge plan.
 

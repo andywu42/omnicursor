@@ -415,7 +415,7 @@ def build_context(
         for instr in instructions:
             routing.append("- {}".format(instr))
     if skill:
-        routing += ["", "**Recommended skill:** `/{}`".format(skill)]
+        routing += ["", "**Recommended skill:** `{}`".format(skill)]
     if patterns:
         routing += ["", "### Learned Patterns"]
         for p in patterns[:MAX_PATTERNS]:
