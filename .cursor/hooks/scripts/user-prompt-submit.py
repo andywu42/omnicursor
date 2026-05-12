@@ -499,7 +499,7 @@ def build_context(
 
 _INTELLIGENCE_API_URL = os.environ.get(
     "INTELLIGENCE_SERVICE_URL",
-    "http://localhost:8053",
+    "http://localhost:18091",
 ).rstrip("/")
 
 _API_TIMEOUT_S: float = float(os.environ.get("OMNICURSOR_CONTEXT_API_TIMEOUT_MS", "900")) / 1000.0
