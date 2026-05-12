@@ -1,22 +1,32 @@
-"""Outcome-driven pattern learning — writes learned patterns from successful sessions.
+"""Outcome-driven pattern learning — tracks injections and learns from successful sessions.
 
-Called by the stop hook when a session ends with outcome 'success'.
-Extracts routing signals from prompt_classified events and writes them to
-learned_patterns.json so they are injected in future sessions.
+Called by the stop hook after every session (any outcome).
+
+Metric updates (any outcome):
+  - injection_count incremented for each known pattern_id in injected_pattern_ids.
+  - utilization_successes incremented only when session_outcome == 'success'.
+
+Pattern learning (success + files_edited > 0 only):
+  - Extracts routing signals from prompt_classified events.
+  - Upserts learned patterns; weight boosted by 1.5x multiplier when pattern was injected.
 
 Pattern weight mechanics:
   - New pattern: weight = 0.60
   - Each repeated success: weight += 0.05, capped at 0.95
   - Patterns not seen in DECAY_DAYS: weight -= 0.10 per day past threshold
   - Max MAX_PATTERNS_PER_DOMAIN patterns per domain (oldest evicted)
+  - Patterns injected often but rarely succeeding are evicted by utilization rate
 
 Stdlib-only. No pip dependencies.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -31,6 +41,7 @@ HARD_FLOOR: float = 0.55
 INITIAL_WEIGHT: float = 0.60
 WEIGHT_INCREMENT: float = 0.05
 WEIGHT_CAP: float = 0.95
+UTILIZATION_SUCCESS_WEIGHT_MULTIPLIER: float = 1.5
 
 # Eviction floor — patterns below this are removed regardless of recency.
 WEIGHT_FLOOR: float = 0.10
@@ -42,12 +53,19 @@ DECAY_AMOUNT: float = 0.10
 
 # Cap per domain — prevents any single domain from monopolizing the cache.
 MAX_PATTERNS_PER_DOMAIN: int = 20
+UTILIZATION_EVICT_MIN_INJECTIONS: int = 10
+UTILIZATION_EVICT_MIN_RATE: float = 0.2
 
 STOPWORDS: frozenset = frozenset({
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
     "has", "have", "i", "in", "is", "it", "my", "not", "of", "on",
     "or", "the", "this", "that", "to", "was", "we", "with", "you",
 })
+
+
+def _make_pattern_id(domain: str, pattern_key: str) -> str:
+    raw = f"{domain}:{pattern_key}".encode("utf-8")
+    return "auto-" + hashlib.sha1(raw).hexdigest()[:12]
 
 
 def _keywords(text: str) -> List[str]:
@@ -71,7 +89,22 @@ def _load_patterns(path: Path) -> List[Dict[str, Any]]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         raw = data.get("patterns", [])
-        return [p for p in raw if isinstance(p, dict)]
+        result: List[Dict[str, Any]] = []
+        for p in raw:
+            if not isinstance(p, dict):
+                continue
+            record = {
+                **p,
+                "injection_count": int(p.get("injection_count", 0)),
+                "utilization_successes": int(p.get("utilization_successes", 0)),
+            }
+            if not record.get("pattern_id"):
+                record["pattern_id"] = _make_pattern_id(
+                    record.get("domain", "general"),
+                    record.get("pattern", ""),
+                )
+            result.append(record)
+        return result
     except (json.JSONDecodeError, OSError):
         return []
 
@@ -79,10 +112,23 @@ def _load_patterns(path: Path) -> List[Dict[str, Any]]:
 def _save_patterns(path: Path, patterns: List[Dict[str, Any]]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps({"patterns": patterns}, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        payload = json.dumps({"patterns": patterns}, indent=2, ensure_ascii=False)
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=path.name + ".",
+            suffix=".tmp",
+            dir=str(path.parent),
         )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(payload)
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+            raise
     except OSError:
         pass
 
@@ -107,16 +153,23 @@ def _upsert_pattern(
     keywords: List[str],
     description: str,
     now: float,
+    *,
+    injected_success: bool = False,
 ) -> List[Dict[str, Any]]:
     """Insert or update a pattern. Returns updated list."""
     pattern_key = " ".join(sorted(keywords[:5]))
 
     for i, p in enumerate(patterns):
         if p.get("domain") == domain and p.get("pattern") == pattern_key:
+            increment = WEIGHT_INCREMENT * (
+                UTILIZATION_SUCCESS_WEIGHT_MULTIPLIER if injected_success else 1.0
+            )
             updated = {
                 **p,
-                "weight": min(WEIGHT_CAP, round(p.get("weight", INITIAL_WEIGHT) + WEIGHT_INCREMENT, 3)),
+                "weight": min(WEIGHT_CAP, round(p.get("weight", INITIAL_WEIGHT) + increment, 3)),
                 "success_count": p.get("success_count", 1) + 1,
+                "injection_count": int(p.get("injection_count", 0)) + (1 if injected_success else 0),
+                "utilization_successes": int(p.get("utilization_successes", 0)) + (1 if injected_success else 0),
                 "last_seen": now,
                 "description": description,
             }
@@ -125,14 +178,31 @@ def _upsert_pattern(
             return result
 
     new_pattern: Dict[str, Any] = {
+        "pattern_id": _make_pattern_id(domain, pattern_key),
         "pattern": pattern_key,
         "domain": domain,
         "weight": INITIAL_WEIGHT,
         "success_count": 1,
+        "injection_count": 1 if injected_success else 0,
+        "utilization_successes": 1 if injected_success else 0,
         "last_seen": now,
         "description": description,
     }
     return patterns + [new_pattern]
+
+
+def _evict_low_utilization(patterns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Drop patterns that are injected often but rarely lead to success."""
+    result: List[Dict[str, Any]] = []
+    for p in patterns:
+        injection_count = int(p.get("injection_count", 0))
+        utilization_successes = int(p.get("utilization_successes", 0))
+        if injection_count > UTILIZATION_EVICT_MIN_INJECTIONS:
+            rate = utilization_successes / injection_count if injection_count else 0.0
+            if rate < UTILIZATION_EVICT_MIN_RATE:
+                continue
+        result.append(p)
+    return result
 
 
 def _evict_overflow(patterns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -187,6 +257,7 @@ def extract_patterns_from_events(
             "domain": domain,
             "keywords": keywords,
             "description": description,
+            "injected": int(evt.get("patterns_injected", 0)) > 0,
         })
 
     return candidates
@@ -196,37 +267,75 @@ def write_session_patterns(
     patterns_file: Path,
     events: List[Dict[str, Any]],
     files_edited: int,
+    session_outcome: str = "success",
 ) -> int:
-    """Extract patterns from events and persist to learned_patterns.json.
+    """Update pattern metrics and learn from session events.
 
-    Only runs when:
-    - files_edited > 0 (real work happened)
-    - at least one decisive routing event exists
+    - Any outcome: increments injection_count for each known injected pattern_id.
+    - success only: increments utilization_successes and updates weight; learns
+      new patterns from prompt_snippet when files_edited > 0.
 
-    Returns the number of patterns written (new + updated).
+    Returns count of records changed (metric updates + new/upserted patterns).
     """
-    if files_edited == 0:
-        return 0
-
-    candidates = extract_patterns_from_events(events, files_edited)
-    if not candidates:
-        return 0
-
     now = time.time()
     existing = _load_patterns(patterns_file)
     existing = _decay_patterns(existing, now)
 
-    written = 0
-    for c in candidates:
-        existing = _upsert_pattern(
-            existing,
-            domain=c["domain"],
-            keywords=c["keywords"],
-            description=c["description"],
-            now=now,
-        )
-        written += 1
+    # Build an index for O(1) lookup by pattern_id.
+    id_index: Dict[str, int] = {
+        p["pattern_id"]: i
+        for i, p in enumerate(existing)
+        if p.get("pattern_id")
+    }
 
+    changed = 0
+
+    # --- Metric updates by injected_pattern_ids ---
+    for evt in events:
+        if evt.get("event") != "prompt_classified":
+            continue
+        raw_ids = evt.get("injected_pattern_ids", [])
+        if not raw_ids:
+            continue
+        seen_in_event: set = set()
+        for pid in raw_ids:
+            if not pid or pid in seen_in_event:
+                continue
+            seen_in_event.add(pid)
+            idx = id_index.get(pid)
+            if idx is None:
+                continue
+            p = existing[idx]
+            p = {**p, "injection_count": p["injection_count"] + 1}
+            if session_outcome == "success":
+                increment = WEIGHT_INCREMENT * UTILIZATION_SUCCESS_WEIGHT_MULTIPLIER
+                p = {
+                    **p,
+                    "utilization_successes": p["utilization_successes"] + 1,
+                    "weight": min(WEIGHT_CAP, round(p.get("weight", INITIAL_WEIGHT) + increment, 3)),
+                    "last_seen": now,
+                }
+            existing[idx] = p
+            changed += 1
+
+    # --- Learn new patterns from prompt_snippet (success + files_edited > 0 only) ---
+    if session_outcome == "success" and files_edited > 0:
+        candidates = extract_patterns_from_events(events, files_edited)
+        for c in candidates:
+            existing = _upsert_pattern(
+                existing,
+                domain=c["domain"],
+                keywords=c["keywords"],
+                description=c["description"],
+                now=now,
+                injected_success=False,
+            )
+            changed += 1
+
+    if not existing and changed == 0:
+        return 0
+
+    existing = _evict_low_utilization(existing)
     existing = _evict_overflow(existing)
     _save_patterns(patterns_file, existing)
-    return written
+    return changed

@@ -157,20 +157,22 @@ Option B adds an optional read path from the local intelligence-reducer. All pat
 ```
 on_stop.py (stop) — only when OMNICURSOR_PATTERN_SYNC_HTTP=1
   └── pattern_sync.sync_learned_patterns(~/.omnicursor/learned_patterns.json)
+        ├── GET http://127.0.0.1:18091/health  (fast offline probe, ≤1s)
         ├── GET http://127.0.0.1:18091/api/v1/patterns  (OMNIINTELLIGENCE_URL overrides base)
         ├── merges remote patterns into local file — local patterns take priority
         │     └── de-duplication by pattern_id, then by JSON fingerprint
-        ├── writes merged result back to learned_patterns.json
-        └── on any network/HTTP error: returns False, local file unchanged (offline fallback)
+        ├── writes merged result back to learned_patterns.json (atomic via tempfile.mkstemp)
+        └── on any network/HTTP/unexpected-body error: returns False, local file unchanged
 ```
 
 **What this enables:** patterns seeded or updated by the intelligence-reducer (Postgres-backed) are pulled into the local cache on session end, so the next session's prompt injection benefits from them.
 
-**What this does not do:** local patterns are never sent to the reducer. The write path (stop hook → Postgres) requires Kafka and is scoped to Option C / year-2.
+**What this does not do:** local patterns are never sent to the reducer. The write path (stop hook → Postgres) requires Kafka and is scoped to Option C / year-2. The outbox (`~/.omnicursor/outbox.jsonl`) is the bridge artifact that Option C will drain.
 
 **Prerequisites:** `docker compose up` with the compose stack in this repo. `OMNICURSOR_PATTERN_SYNC_HTTP=1` must be set in the environment (see `.env.omninode.example`). Overrideable base URL: `OMNIINTELLIGENCE_URL=http://127.0.0.1:18091`.
 
 ---
+
 
 ## Related docs
 

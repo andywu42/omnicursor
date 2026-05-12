@@ -167,8 +167,6 @@ OmniCursor writes session data to two files under `~/.omnicursor/`:
 - `description`: `"Auto-learned: <first 60 chars of prompt> → <agent> (score X.XX)"` — captures up to 60 characters of prompt content
 - `domain`, `weight`, `success_count`, `injection_count`, `utilization_successes`, `last_seen`
 
-**The description field captures prompt content.** If your prompts contain secrets, credentials, PII, or sensitive project names, that content may appear in `learned_patterns.json`. OmniCursor does not transmit this file anywhere by default.
-
-When `OMNICURSOR_PATTERN_SYNC_HTTP=1` is set, the stop hook calls `GET /api/v1/patterns` on the local intelligence-reducer (`http://127.0.0.1:18091`) and **merges** remote patterns into your local file. It is a **read-only pull** — your local patterns are never sent upstream. The stack must be running (`docker compose up`) for this to have any effect; if offline, the local file is left unchanged.
+**The description field captures prompt content.** If your prompts contain secrets, credentials, PII, or sensitive project names, that content may appear in `learned_patterns.json`. OmniCursor does not transmit this file anywhere — it is read-only local storage unless you explicitly enable `OMNICURSOR_PATTERN_SYNC_HTTP=1` (off by default), which pulls updated patterns from a local intelligence-reducer service (`http://127.0.0.1:18091`) but does not upload your local file. If the service is offline, the local file is left unchanged.
 
 If you are working with sensitive material, avoid typing it directly into prompts or clear `~/.omnicursor/learned_patterns.json` periodically.
