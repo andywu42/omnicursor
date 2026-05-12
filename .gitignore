@@ -3,6 +3,8 @@ omniclaude/
 omnimarket/
 omnimarket-main/
 omnimarket-main.zip
+omnidash/
+omnidash-main/
 
 # Environment files (credentials, local overrides)
 .env
