@@ -7,6 +7,14 @@ Two-act demo. Total time: ~15 minutes.
 - **Act 2** — Option C observability: the session from Act 1 appears as a live event
   in OmniDash within 2 seconds, sourced from the Unix socket sidecar.
 
+Commands below use `$OMNICURSOR_ROOT` for the OmniCursor repo and `$OMNIDASH_ROOT`
+for the OmniDash repo. Set these once before starting:
+
+```bash
+export OMNICURSOR_ROOT=<absolute path to OmniCursor repo>
+export OMNIDASH_ROOT=<absolute path to OmniDash repo>
+```
+
 ---
 
 ## Prerequisites
@@ -16,7 +24,7 @@ These only need to be done once.
 ### 1. Python venv
 
 ```bash
-cd /home/andyw/cs490/omninode/OmniCursor
+cd "$OMNICURSOR_ROOT"
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
@@ -35,7 +43,7 @@ If it calls `tracker.list_teams` without erroring, Linear MCP is live.
 ### 3. OmniDash dependencies
 
 ```bash
-cd /home/andyw/cs490/omninode/omnidash
+cd "$OMNIDASH_ROOT"
 npm install
 ```
 
@@ -54,7 +62,7 @@ Open **4 terminals** and leave them running.
 ### Terminal 1 — OmniDash server
 
 ```bash
-cd /home/andyw/cs490/omninode/omnidash
+cd "$OMNIDASH_ROOT"
 OMNIDASH_DATA_SOURCE=file \
 FIXTURES_DIR=/tmp/omnicursor-omnidash-fixtures \
 npm run dev
@@ -69,7 +77,7 @@ tab and navigate to the **Live Event Stream** widget. Leave it visible.
 ### Terminal 2 — OmniCursor sidecar (Option C)
 
 ```bash
-cd /home/andyw/cs490/omninode/OmniCursor/.worktrees/intelligence-option-c
+cd "$OMNICURSOR_ROOT"
 bash scripts/run_sidecar.sh --publisher omnidash
 ```
 
@@ -111,11 +119,8 @@ If it does not appear, check the sidecar terminal for errors.
 
 ### Terminal 4 — Cursor (your working IDE)
 
-Open Cursor pointed at the option-c worktree:
-
-```bash
-cursor /home/andyw/cs490/omninode/OmniCursor/.worktrees/intelligence-option-c
-```
+Open Cursor pointed at the OmniCursor repo root. The repo already has hooks
+and skills configured — no extra setup needed.
 
 ---
 
@@ -217,8 +222,6 @@ pattern OmniClaude uses with its emit daemon."
 
 ### Step 4 — Show the architecture diagram (optional)
 
-Draw or display:
-
 ```
 Cursor IDE
   └─ stop hook (stop.py)
@@ -254,7 +257,7 @@ OmniNode. The gap between Cursor and Claude Code closes at the event bus level."
 The sidecar cleans up stale sockets automatically. If it still fails:
 ```bash
 rm -f ~/.omnicursor/emit.sock
-bash scripts/run_sidecar.sh --publisher omnidash
+cd "$OMNICURSOR_ROOT" && bash scripts/run_sidecar.sh --publisher omnidash
 ```
 
 ### Linear MCP not responding
