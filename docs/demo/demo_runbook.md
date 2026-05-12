@@ -5,7 +5,7 @@ Two-act demo. Total time: ~15 minutes.
 - **Act 1** — Ticket-to-code pipeline: type a task description, OmniCursor creates
   a Linear ticket, implements the code autonomously, and opens a PR.
 - **Act 2** — Option C observability: the session from Act 1 appears as a live event
-  in OmniDash within 2 seconds, sourced from the Unix socket sidecar.
+  stream in the terminal, sourced from the Unix socket sidecar.
 
 Commands below use `$OMNICURSOR_ROOT` for the OmniCursor repo and `$OMNIDASH_ROOT`
 for the OmniDash repo. Set these once before starting:
@@ -57,39 +57,25 @@ mkdir -p ~/.omnicursor
 
 ## Day-of setup (do this before the audience arrives)
 
-Open **4 terminals** and leave them running.
+Open **3 terminals** and leave them running.
 
-### Terminal 1 — OmniDash server
-
-```bash
-cd "$OMNIDASH_ROOT"
-OMNIDASH_DATA_SOURCE=file \
-FIXTURES_DIR=/tmp/omnicursor-omnidash-fixtures \
-npm run dev
-```
-
-Wait for `Local: http://localhost:5173` (or similar). Open that URL in a browser
-tab and navigate to the **Live Event Stream** widget. Leave it visible.
-
-> `OMNIDASH_DATA_SOURCE=file` is required — without it the server defaults to
-> SQLite and ignores the fixtures directory entirely.
-
-### Terminal 2 — OmniCursor sidecar (Option C)
+### Terminal 1 — OmniCursor sidecar (Option C)
 
 ```bash
 cd "$OMNICURSOR_ROOT"
-bash scripts/run_sidecar.sh --publisher omnidash
+source /home/andyw/cs490/omninode/OmniCursor/.venv/bin/activate
+bash scripts/run_sidecar.sh --publisher noop
 ```
 
 Expected output:
 ```
-sidecar starting | publisher=omnidash outbox=~/.omnicursor/outbox.jsonl socket=~/.omnicursor/emit.sock interval=2.0s
+sidecar starting | publisher=noop outbox=~/.omnicursor/outbox.jsonl socket=~/.omnicursor/emit.sock interval=2.0s
 socket listener bound to ~/.omnicursor/emit.sock
 ```
 
 Leave it running. It polls every 2 seconds.
 
-### Terminal 3 — Outbox watcher + preflight smoke test
+### Terminal 2 — Outbox watcher + preflight smoke test
 
 Start the outbox watcher — leave it running for the whole demo:
 
@@ -98,18 +84,16 @@ cd "$OMNICURSOR_ROOT"
 python3 scripts/watch_outbox.py
 ```
 
-Then in a separate shell run the smoke test once to confirm the pipe is live:
+Then in a **separate shell** run the smoke test once to confirm the pipe is live:
 
 ```bash
 cd "$OMNICURSOR_ROOT"
 python3 scripts/smoke_test.py
 ```
 
-Expected: `{"status": "queued", "event_id": "..."}` from the smoke test.  
-Within 2–3 seconds Terminal 3 should print a color-coded `SESSION OUTCOME` block and the OmniDash Live Event Stream widget should update.  
-If neither happens, check the sidecar terminal for errors.
+Expected: `{"status": "queued", "event_id": "..."}` from the smoke test, and a color-coded `SESSION OUTCOME` block in Terminal 2 within 2 seconds. If it doesn't appear, check Terminal 1 for errors.
 
-### Terminal 4 — Cursor (your working IDE)
+### Terminal 3 — Cursor (your working IDE)
 
 Open Cursor pointed at the OmniCursor repo root. The repo already has hooks
 and skills configured — no extra setup needed.
@@ -175,37 +159,23 @@ the contract; the implementation follows the contract."
 
 ## Act 2 — Option C observability (~5 min)
 
-### Step 1 — Point at the sidecar terminal
+### Step 1 — Point at the sidecar terminal (Terminal 1)
 
-Switch to Terminal 2. Show the drain log lines that appeared while Act 1 ran:
+Switch to Terminal 1. Show the drain log lines that appeared while Act 1 ran:
 
 ```
-drainer: published session.outcome for session <id>
-drainer: published utilization.scoring.requested for session <id>
+drainer: noop.publish session.outcome
+drainer: noop.publish utilization.scoring.requested
 ```
 
-**Narrate:** "Every time a Cursor session ends, our stop hook emits a structured
-event over a Unix socket to the sidecar. The sidecar drains it to OmniDash — or
-to Kafka in production."
+**Narrate:** "Every time a Cursor session ends, the stop hook emits a structured
+event over a Unix socket to the sidecar. The sidecar drains it — in production
+this goes straight to Kafka and into omniintelligence."
 
-### Step 2 — Show OmniDash
+### Step 2 — Show the outbox watcher (Terminal 2)
 
-Switch to the OmniDash browser tab.
-
-Point out:
-- The session that just ran appears in the Live Event Stream
-- Fields: `session_id`, `outcome: success`, `matched_agent`, `matched_confidence`
-- Timestamp is within seconds of the session ending
-
-**Narrate:** "This is the same event bus OmniClaude uses. The event format
-matches `omniintelligence`'s expected schema — so omniintelligence can consume
-it, update pattern weights, and inject those patterns into the next Cursor
-session. That's the learning loop."
-
-### Step 3 — Show the outbox watcher (Terminal 3)
-
-Switch to Terminal 3. It has been running `watch_outbox.py` since setup and already
-shows the Act 1 session in color:
+Switch to Terminal 2. It has been running `watch_outbox.py` since setup and shows
+the Act 1 session already formatted in color:
 
 ```
 ── SESSION OUTCOME  conv=437b7ae7…
@@ -217,11 +187,14 @@ shows the Act 1 session in color:
   patterns : auto-5f38e3a94eac
 ```
 
-**Narrate:** "The outbox is the durability layer. Every session is written here
-before the sidecar drains it — if the sidecar is down, nothing is lost. Same
-pattern OmniClaude uses with its emit daemon."
+Point out the fields: agent matched, confidence score, files edited, which patterns
+were injected.
 
-### Step 4 — Show the architecture diagram (optional)
+**Narrate:** "Every session produces a structured record — agent used, outcome,
+files changed, patterns injected. This is the same schema omniintelligence expects.
+Connect Kafka and these flow directly into the intelligence pipeline."
+
+### Step 3 — Show the architecture diagram (optional)
 
 ```
 Cursor IDE
@@ -230,35 +203,34 @@ Cursor IDE
              └─► sidecar (socket_listener)
                    └─► ~/.omnicursor/outbox.jsonl   (durable)
                          └─► drain_loop (2s tick)
-                               ├─► OmniDash fixtures  (demo)
                                └─► Kafka/Redpanda      (production)
                                      └─► omniintelligence
                                            └─► pattern injection
                                                  └─► next Cursor session
 ```
 
-**Narrate:** "Option C puts OmniCursor on the same infrastructure as the rest of
-OmniNode. The gap between Cursor and Claude Code closes at the event bus level."
+**Narrate:** "Option C puts OmniCursor on the same infrastructure as OmniClaude.
+The gap closes at the event bus level — same topics, same schema, same pipeline."
 
 ---
 
 ## Troubleshooting
 
-### OmniDash shows no events
+### Terminal 2 shows no events after a session ends
 
-1. Confirm `OMNIDASH_DATA_SOURCE=file` is set in Terminal 1. Kill and restart if needed.
-2. Check `/tmp/omnicursor-omnidash-fixtures/` exists and has files:
+1. Check Terminal 1 — the sidecar should show drain log lines. If not, the stop hook didn't fire. Make sure Cursor was opened on the worktree directory.
+2. Check the outbox directly:
    ```bash
-   ls /tmp/omnicursor-omnidash-fixtures/onex.snapshot.projection.live-events.v1/
+   tail -5 ~/.omnicursor/outbox.jsonl
    ```
-3. If the directory is empty, the sidecar did not drain. Check Terminal 2 for errors.
+   If it's empty, the stop hook didn't write anything.
 
 ### Sidecar socket error on start
 
 The sidecar cleans up stale sockets automatically. If it still fails:
 ```bash
 rm -f ~/.omnicursor/emit.sock
-cd "$OMNICURSOR_ROOT" && bash scripts/run_sidecar.sh --publisher omnidash
+cd "$OMNICURSOR_ROOT" && bash scripts/run_sidecar.sh --publisher noop
 ```
 
 ### Linear MCP not responding
@@ -268,17 +240,9 @@ Restart Cursor. MCP servers are started per IDE session. If still failing, check
 
 ### pytest fails during execute-plan
 
-Claude will attempt up to 2 self-correction cycles. If tests still fail, it will
-mark the ticket blocked and report what it tried. This is fine for the demo —
-show the Linear comment as evidence of autonomous error reporting.
-
-### Reset OmniDash between runs
-
-```bash
-rm -rf /tmp/omnicursor-omnidash-fixtures
-```
-
-The next drain cycle recreates the directory.
+OmniCursor will attempt up to 2 self-correction cycles. If tests still fail it
+marks the ticket blocked in Linear and reports what it tried. Show the Linear
+comment as evidence of autonomous error reporting — it's still a good demo moment.
 
 ---
 
@@ -286,12 +250,10 @@ The next drain cycle recreates the directory.
 
 | Variable | Where | Effect |
 |---|---|---|
-| `OMNIDASH_DATA_SOURCE=file` | Terminal 1 (OmniDash server) | Read projections from fixture files instead of SQLite |
-| `FIXTURES_DIR` | Terminal 1 | Root directory served by OmniDash |
 | `INTELLIGENCE_SERVICE_URL` | Cursor env | omniintelligence HTTP API for per-prompt pattern injection (default: `http://localhost:8053`) |
 | `OMNICURSOR_CONTEXT_API_TIMEOUT_MS` | Cursor env | Timeout for API pattern fetch in ms (default: 900) |
-| `OMNICURSOR_SIDECAR_INTERVAL` | Terminal 2 | Drain poll interval in seconds (default: 2) |
-| `KAFKA_BOOTSTRAP_SERVERS` | Terminal 2 | Broker address when using `--publisher kafka` |
+| `OMNICURSOR_SIDECAR_INTERVAL` | Terminal 1 | Drain poll interval in seconds (default: 2) |
+| `KAFKA_BOOTSTRAP_SERVERS` | Terminal 1 | Broker address when using `--publisher kafka` (requires Docker + Redpanda) |
 
 ---
 
