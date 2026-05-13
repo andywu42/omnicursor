@@ -81,7 +81,7 @@ Triggered when the user types `/execute-plan`. Accepts either a plan file
 |---|---|
 | Plan review | `onex:plan-review` — adversarial check. Stops on CRITICAL/MAJOR findings. Skipped when passing a ticket ID directly. |
 | Ticket creation | `onex:plan-to-tickets` — one Linear epic + one ticket per plan task. Skipped when passing a ticket ID directly. |
-| Pipeline | `run_ticket_pipeline(ticket_id)` via omnimarket MCP bridge for each ticket. |
+| Pipeline | `run_ticket_pipeline(ticket_id)` via omnimarket MCP bridge for each ticket. The MCP argument is **`ticket_id`**; the subprocess passes it as the **last positional** argument to `node_ticket_pipeline` (after optional `--skip-test-iterate` / `--dry-run`), not `--ticket-id`. |
 
 **omnimarket `node_ticket_pipeline` phases:**
 

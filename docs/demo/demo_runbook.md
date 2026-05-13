@@ -383,6 +383,8 @@ ls "$OMNIMARKET_ROOT/src/omnimarket/nodes/node_ticket_pipeline"
 ```
 Confirm the omnimarket MCP server is running in Cursor (check MCP status in Cursor settings).
 
+If the tool error includes `unrecognized arguments: --ticket-id`, the MCP server is using an older `omnicursor` install that passed a non-existent CLI flag. Reinstall from **this** checkout so it matches omnimarket’s argparse: `pip install -e ".[dev]"` in the same virtualenv your `mcp.json` uses to launch `python -m omnicursor.mcp.omnimarket_bridge_server`.
+
 ### Sidecar socket error on start
 
 ```bash

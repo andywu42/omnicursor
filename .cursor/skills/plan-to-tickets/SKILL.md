@@ -70,6 +70,8 @@ Task 3 → OMN-103 (blocked by OMN-101, OMN-102)
 
 Return this mapping to the caller (execute_plan uses it for ordered implementation).
 
+Downstream, `onex:execute-plan` invokes the Omnimarket MCP tool `run_ticket_pipeline` with **`ticket_id`** set to each Linear identifier from this mapping (e.g. `"OMN-101"`).
+
 ## Dry Run
 
 With `--dry-run`: parse the plan and print what would be created, but make no MCP calls.

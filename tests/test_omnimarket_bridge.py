@@ -325,6 +325,44 @@ def test_pythonpath_includes_root_src(
     assert pythonpath == str(fake_root / "src")
 
 
+def test_run_ticket_pipeline_uses_positional_ticket_id(
+    monkeypatch: pytest.MonkeyPatch, fake_root: Path
+) -> None:
+    spy = _SubprocessSpy(stdout="{}")
+    _patch_root(monkeypatch, fake_root)
+    _patch_subprocess(monkeypatch, spy)
+
+    omnimarket_bridge.run_ticket_pipeline(ticket_id="OMN-47")
+
+    cmd = spy.calls[0]["cmd"]
+    assert "omnimarket.nodes.node_ticket_pipeline" in cmd
+    assert "--ticket-id" not in cmd
+    assert cmd[-1] == "OMN-47"
+
+
+def test_run_ticket_pipeline_optional_flags_before_positional_id(
+    monkeypatch: pytest.MonkeyPatch, fake_root: Path
+) -> None:
+    spy = _SubprocessSpy(stdout="{}")
+    _patch_root(monkeypatch, fake_root)
+    _patch_subprocess(monkeypatch, spy)
+
+    omnimarket_bridge.run_ticket_pipeline(
+        ticket_id="OMN-42",
+        skip_test_iterate=True,
+        dry_run=True,
+    )
+
+    cmd = spy.calls[0]["cmd"]
+    assert "--ticket-id" not in cmd
+    assert "--skip-test-iterate" in cmd
+    assert "--dry-run" in cmd
+    assert cmd.index("--skip-test-iterate") < cmd.index("--dry-run") < cmd.index(
+        "OMN-42"
+    )
+    assert cmd[-1] == "OMN-42"
+
+
 def test_existing_pythonpath_preserved(
     monkeypatch: pytest.MonkeyPatch, fake_root: Path
 ) -> None:
