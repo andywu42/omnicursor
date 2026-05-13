@@ -1,4 +1,11 @@
-# Plan Ticket
+---
+name: "onex:plan-ticket"
+description: >-
+  Use this skill when the user has a plan or task description and needs a ticket contract template with deterministic repo detection and YAML output.
+disable-model-invocation: true
+---
+
+# onex:plan-ticket
 
 Use this skill when the user has a plan or task description and needs a ticket contract template with deterministic repo detection and YAML output.
 
@@ -34,19 +41,14 @@ Generate a structured YAML ticket contract template that can be handed to a team
 
 4. **Create the Linear ticket via MCP.**
 
-   Call `tracker.list_teams` to get available teams. If multiple teams exist, ask the user
-   which to use (or pick the one matching the detected repo name).
+   Tool names depend on the Linear MCP server configured in Cursor; do not assume a single transport.
 
-   Then call:
-   ```
-   tracker.create_issue(
-     title="<imperative title>",
-     teamId="<team id>",
-     description="<requirements + verification as markdown>",
-   )
-   ```
+   - **Common in this repo’s Cursor setup:** `list_teams` on the Linear plugin, then `save_issue` with `title`, `team` (name or id), and `description` (markdown combining requirements + verification).
+   - **Older / OmniClaude-shaped docs** may say `tracker.list_teams` and `tracker.create_issue` with `teamId` — match that *semantics* using whatever parameters your MCP tools actually accept.
 
-   Report the created ticket URL to the user.
+   If multiple teams exist and none is obvious, ask the user which team to use. Always list teams (or confirm a single team) before creating the issue. Report the created ticket URL to the user.
+
+   **Execute-plan / Omnimarket:** when the user later runs `onex:execute-plan` or the MCP tool `run_ticket_pipeline`, the Linear issue key from the created ticket is passed as **`ticket_id`** (MCP/JSON name). Use the identifier Linear returns (e.g. `OMN-47`), not a made-up prefix.
 
 ## Expected Output Format
 
@@ -67,5 +69,5 @@ Followed by the Linear ticket creation result.
 - [ ] Title uses imperative verb form
 - [ ] Requirements have specific, testable acceptance criteria
 - [ ] Verification section includes at least unit tests and lint
-- [ ] `tracker.list_teams` was called before `tracker.create_issue`
+- [ ] Teams were resolved (`list_teams` / `tracker.list_teams`, or equivalent) before create (`save_issue` / `tracker.create_issue`, or equivalent)
 - [ ] Linear ticket URL is reported to the user

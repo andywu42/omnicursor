@@ -1,4 +1,11 @@
-# Recap
+---
+name: "onex:recap"
+description: >-
+  Summarize the current Cursor session inline in chat.
+disable-model-invocation: true
+---
+
+# onex:recap
 
 Summarize the current Cursor session inline in chat.
 

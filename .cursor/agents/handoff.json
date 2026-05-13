@@ -40,5 +40,5 @@
     "Prefer a dated file under docs/plans/ or docs/dev/handoffs/ so docs/dev/HANDOFF.md is not overwritten.",
     "Optionally validate output against src/omnicursor/compliance.py for skill handoff."
   ],
-  "recommended_skill": "handoff"
+  "recommended_skill": "onex:handoff"
 }

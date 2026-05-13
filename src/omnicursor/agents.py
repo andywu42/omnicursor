@@ -46,7 +46,7 @@ DEFAULT_CONTEXT = AgentContext(
     description="General-purpose fallback agent for unmatched categories.",
     instructions=[
         "Prefer the preserved Cursor rules before inventing a new workflow.",
-        "Read skills under skills/ when needed; use hook routing hints when present.",
+        "Read skills under skills/ when needed (IDs use the onex: prefix); use hook routing hints when present.",
         "Check 00-omninode-concepts for shared vocabulary.",
     ],
     recommended_skill=None,
@@ -67,7 +67,7 @@ AGENT_CONTEXTS: Dict[str, AgentContext] = {
             "Load the systematic-debugging skill and follow it step-by-step.",
             "Prefer the smallest verified fix over a redesign.",
         ],
-        recommended_skill="systematic-debugging",
+        recommended_skill="onex:systematic-debugging",
     ),
     "brainstorming": AgentContext(
         agent_name="brainstorming-guide",
@@ -79,7 +79,7 @@ AGENT_CONTEXTS: Dict[str, AgentContext] = {
             "Present 2-3 approaches with named trade-offs before settling.",
             "Write design outputs to docs/plans/ using the existing handoff protocol.",
         ],
-        recommended_skill="brainstorming",
+        recommended_skill="onex:brainstorming",
     ),
     "planning": AgentContext(
         agent_name="plan-writer",
@@ -91,7 +91,7 @@ AGENT_CONTEXTS: Dict[str, AgentContext] = {
             "Use the preserved adversarial review structure (R1-R6) before handing off.",
             "Output complete code examples, not placeholders.",
         ],
-        recommended_skill="writing-plans",
+        recommended_skill="onex:writing-plans",
     ),
     "ticketing": AgentContext(
         agent_name="ticket-planner",
@@ -102,7 +102,7 @@ AGENT_CONTEXTS: Dict[str, AgentContext] = {
             "Keep output YAML-only and use the documented handoff to the linear rule.",
             "Pre-fill fields from prompt context; mark uncertain fields as FILL IN.",
         ],
-        recommended_skill="plan-ticket",
+        recommended_skill="onex:plan-ticket",
     ),
 }
 

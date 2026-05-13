@@ -1,25 +1,55 @@
-# OmniCursor Demo Runbook
+# OmniCursor Demo Runbook — Options B+C (Full Intelligence Stack)
 
-Two-act demo. Total time: ~15 minutes.
+Three-act demo. Total time: ~20 minutes.
 
-- **Act 1** — Ticket-to-code pipeline: type a task description, OmniCursor creates
-  a Linear ticket, implements the code autonomously, and opens a PR.
-- **Act 2** — Option C observability: the session from Act 1 appears as a live event
-  stream in the terminal, sourced from the Unix socket sidecar.
+- **Act 1** — Agent routing: OmniCursor reads the prompt, selects the right agent,
+  and injects learned patterns into the system message before the model sees anything.
+- **Act 2** — Ticket-to-PR pipeline: one description becomes a Linear ticket, the
+  omnimarket bridge implements it, opens a PR, watches CI, and merges — unattended.
+- **Act 3** — The learning loop: the session outcome flows into omniintelligence via
+  Kafka, pattern weights update, and the next prompt gets smarter context automatically.
 
-Commands below use `$OMNICURSOR_ROOT` for the OmniCursor repo and `$OMNIDASH_ROOT`
-for the OmniDash repo. Set these once before starting:
+Set this once before starting:
 
 ```bash
-export OMNICURSOR_ROOT=<absolute path to OmniCursor repo>
-export OMNIDASH_ROOT=<absolute path to OmniDash repo>
+export OMNICURSOR_ROOT=<absolute path to OmniCursor worktree>
+# e.g. export OMNICURSOR_ROOT=/home/andyw/cs490/omninode/OmniCursor/.worktrees/intelligence-option-bc
 ```
 
 ---
 
-## Prerequisites
+## The full pipeline
 
-These only need to be done once.
+```
+User prompt
+  └─► user-prompt-submit.py
+        ├─► GET /api/v1/patterns (omniintelligence, Option B read)
+        │     └─► fallback: local learned_patterns.json
+        ├─► 3-strategy agent scoring → best-fit agent selected
+        └─► injects agent persona + patterns into system message
+
+/execute-plan typed
+  └─► plan-review → plan-to-tickets → Linear tickets created
+  └─► run_ticket_pipeline(ticket_id) via omnimarket bridge
+        └─► IMPLEMENT → LOCAL_REVIEW → CREATE_PR → CI_WATCH → AUTO_MERGE → DONE
+
+Session ends (stop.py)
+  ├─► classifies outcome (success/failed/abandoned)
+  ├─► writes outbox record → ~/.omnicursor/outbox.jsonl  (Option C durable)
+  ├─► emits session.outcome → Unix socket → sidecar → Kafka/Redpanda
+  └─► updates local learned_patterns.json
+
+Sidecar drain loop (every 2s)
+  └─► omniintelligence consumes events → updates pattern weights in Postgres
+
+Next prompt
+  └─► GET /api/v1/patterns returns updated weights → better context injected
+       └─► loop closes
+```
+
+---
+
+## Prerequisites (one-time)
 
 ### 1. Python venv
 
@@ -29,80 +59,168 @@ python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### 2. Linear MCP
-
-Verify Linear MCP is configured in `~/.cursor/mcp.json`. It should contain a
-`linear` entry. If not, follow `QUICKSTART.md`.
-
-Quick check — open Cursor and run:
-```
-/plan-ticket test
-```
-If it calls `tracker.list_teams` without erroring, Linear MCP is live.
-
-### 3. OmniDash dependencies
+### 2. Docker
 
 ```bash
-cd "$OMNIDASH_ROOT"
-npm install
+docker info >/dev/null 2>&1 && echo "Docker OK"
 ```
 
-### 4. Sidecar directory
+First `docker compose up` builds omniintelligence from source — allow **5–10 minutes**.
+Subsequent starts are instant (images cached).
+
+### 3. Omnimarket
+
+Ensure `OMNIMARKET_ROOT` points to a local omnimarket checkout. The omnimarket bridge
+uses this to invoke `node_ticket_pipeline` via subprocess.
+
+```bash
+export OMNIMARKET_ROOT=/home/andyw/cs490/omninode/omnimarket
+```
+
+### 4. Linear MCP
+
+Verify `~/.cursor/mcp.json` has a `linear` entry with a valid API key.
+
+Quick check — open Cursor and type `/plan-ticket test`. If it calls `tracker.list_teams`
+without erroring, Linear MCP is live.
+
+### 5. gh CLI
+
+```bash
+gh auth status
+```
+
+The ticket pipeline uses `gh pr create` and `gh run watch`. If not authenticated,
+run `gh auth login`.
+
+### 6. Sidecar directory
 
 ```bash
 mkdir -p ~/.omnicursor
 ```
 
+### 7. OmniDash (optional — for live event visualization)
+
+```bash
+export OMNIDASH_ROOT=/path/to/omnidash
+cd "$OMNIDASH_ROOT"
+cp .env.example .env.local   # then set OMNIDASH_AUTH_ENABLED=false, DATABASE_URL pointing to postgres:5436/omnidash_analytics
+npm install
+npm run db:migrate
+```
+
+OmniDash will start automatically when `OMNIDASH_ROOT` is set and you run `run_bc_stack.sh`.
+
 ---
 
 ## Day-of setup (do this before the audience arrives)
 
-Open **3 terminals** and leave them running.
+Open **3 terminals** and leave them running (add Terminal 4 if using OmniDash).
 
-### Terminal 1 — OmniCursor sidecar (Option C)
+### Terminal 1 — Full B+C stack (compose + sidecar)
 
 ```bash
 cd "$OMNICURSOR_ROOT"
-source /home/andyw/cs490/omninode/OmniCursor/.venv/bin/activate
-bash scripts/run_sidecar.sh --publisher noop
+source .venv/bin/activate
+bash scripts/run_bc_stack.sh
 ```
 
+Starts Redpanda, Postgres, Valkey, and omniintelligence, waits for the reducer to be
+healthy, then launches the sidecar with Kafka publishing enabled.
+
 Expected output:
+
 ```
-sidecar starting | publisher=noop outbox=~/.omnicursor/outbox.jsonl socket=~/.omnicursor/emit.sock interval=2.0s
+Starting compose stack...
+intelligence-reducer is healthy.
+
+Starting OmniCursor sidecar (publisher=kafka)...
+  INTELLIGENCE_SERVICE_URL=http://localhost:18091
+  OMNICURSOR_PATTERN_SYNC_HTTP=1
+
+sidecar starting | publisher=kafka outbox=~/.omnicursor/outbox.jsonl socket=~/.omnicursor/emit.sock interval=2.0s
 socket listener bound to ~/.omnicursor/emit.sock
 ```
 
-Leave it running. It polls every 2 seconds.
-
 ### Terminal 2 — Outbox watcher + preflight smoke test
-
-Start the outbox watcher — leave it running for the whole demo:
 
 ```bash
 cd "$OMNICURSOR_ROOT"
 python3 scripts/watch_outbox.py
 ```
 
-Then in a **separate shell** run the smoke test once to confirm the pipe is live:
+Then in a separate shell, confirm the full pipe is live:
 
 ```bash
-cd "$OMNICURSOR_ROOT"
 python3 scripts/smoke_test.py
 ```
 
-Expected: `{"status": "queued", "event_id": "..."}` from the smoke test, and a color-coded `SESSION OUTCOME` block in Terminal 2 within 2 seconds. If it doesn't appear, check Terminal 1 for errors.
+Expected: `{"status": "queued", "event_id": "..."}` from smoke test, and a color-coded
+`SESSION OUTCOME` block in Terminal 2 within 2 seconds.
 
 ### Terminal 3 — Cursor (your working IDE)
 
-Open Cursor pointed at the OmniCursor repo root. The repo already has hooks
-and skills configured — no extra setup needed.
+Open Cursor pointed at `$OMNICURSOR_ROOT`. Hooks and skills are already configured.
+
+### Terminal 4 — OmniDash (optional)
+
+Requires a local OmniDash checkout with `npm install` and `npm run db:migrate` already done.
+
+```bash
+cd "$OMNIDASH_ROOT"
+
+# Start the OmniDash bridge (reads outbox, writes fixture files)
+source "$OMNICURSOR_ROOT/.venv/bin/activate"
+python -m omnicursor.drainer.omnidash_bridge \
+    --outbox ~/.omnicursor/outbox.jsonl \
+    --cursor ~/.omnicursor/omnidash.cursor \
+    --fixtures /tmp/omnicursor-omnidash-fixtures &
+
+# Start the OmniDash UI
+npm run dev:local
+```
+
+Then open:
+- `http://localhost:3000/live-events` — all Kafka events streaming in real time
+- `http://localhost:3000/patterns` — pattern weight updates from omniintelligence
 
 ---
 
-## Act 1 — Ticket-to-code pipeline (~8 min)
+## Act 1 — Agent routing and pattern injection (~3 min)
 
-### Step 1 — Create a ticket from a task description
+### Step 1 — Submit any prompt and show what happened
+
+In Cursor's composer, type a realistic dev task:
+
+```
+I need to debug why the session outbox is writing duplicate entries
+```
+
+After the response starts, switch to Terminal 2. Show the hook event:
+
+```
+── HOOK  user-prompt-submit  conv=a3f8b2c1…
+  agent    : debugging-agent  score=0.81
+```
+
+**Narrate:** "Before the model saw a single token, OmniCursor scored this prompt
+against 18 agents, matched it to the debugging agent with 81% confidence, and
+injected that agent's persona plus any relevant learned patterns into the system
+message. The model is already working with the right context."
+
+### Step 2 — Show the pattern injection (if patterns exist)
+
+If `~/.omnicursor/learned_patterns.json` has entries, point out the `patterns injected`
+field in Terminal 2. If it shows 0 at the start of the demo — that's honest and expected:
+
+**Narrate:** "No patterns yet — this is the first session. By the end of the demo
+you'll see how that changes."
+
+---
+
+## Act 2 — Ticket-to-PR pipeline (~10 min)
+
+### Step 1 — Create a ticket from a description
 
 In Cursor's composer, type:
 
@@ -111,18 +229,18 @@ Add a prompt_length field to the session outbox schema so we can track
 how long each prompt was. /plan-ticket
 ```
 
-OmniCursor will automatically:
+OmniCursor will:
 1. Read the codebase to understand `session_outbox.py`
 2. Generate a YAML ticket contract
 3. Call `tracker.create_issue` → creates a Linear ticket (e.g. `OMN-XX`)
 4. Report the ticket URL
 
-**Narrate:** "OmniCursor read the repo, determined what the task requires,
-and registered it in Linear — no manual ticket writing."
+**Narrate:** "OmniCursor read the repo, wrote the contract, and registered the
+ticket in Linear. No manual ticket writing."
 
-### Step 2 — Execute the ticket autonomously
+### Step 2 — Run the full pipeline
 
-Still in Cursor's composer, type:
+Type:
 
 ```
 /execute-plan — implement OMN-XX
@@ -130,139 +248,192 @@ Still in Cursor's composer, type:
 
 (Replace `OMN-XX` with the ticket ID from Step 1.)
 
-OmniCursor drives the full pipeline unattended:
-1. Reads the Linear ticket via MCP
-2. Identifies files to change (`session_outbox.py`, relevant tests)
-3. Implements the change
-4. Runs `pytest tests/ -q`
-5. Opens a PR via `gh pr create`
-6. Updates the Linear ticket to Done
+**Step away from the keyboard.** The omnimarket bridge takes over:
 
-**Step away from the keyboard after typing the command.** This is the key
-moment — the audience should see the pipeline running with no human input.
+1. Reads the Linear ticket
+2. Implements the change (`session_outbox.py` + tests)
+3. Runs local review loop
+4. Pushes branch, opens PR via `gh pr create`
+5. Watches CI via `gh run watch`
+6. Auto-merges when CI passes
+7. Marks ticket Done in Linear
 
-**Narrate while it runs:** "One command. OmniCursor reads the ticket contract,
-writes the code, runs the test suite, opens the PR, and closes the ticket —
-fully unattended."
+**Narrate while it runs:** "One command. The omnimarket bridge drives the full
+pipeline — implement, review, PR, CI, merge, done. No human in the loop."
 
 ### Step 3 — Show the result
 
-When the pipeline finishes, show:
-- The PR URL in the Cursor output
-- The Linear ticket status: Done
-- The diff: `src/omnicursor/session_outbox.py` has the new field
+When the pipeline finishes:
+- PR URL in Cursor output — click it
+- Linear ticket status: Done
+- Diff: `src/omnicursor/session_outbox.py` has the new `prompt_length` field
 
-**Narrate:** "From a one-line description to a merged-ready PR. The ticket is
-the contract; the implementation follows the contract."
+**Narrate:** "From a one-sentence description to a merged PR. The ticket is the
+contract; the pipeline executes the contract."
 
 ---
 
-## Act 2 — Option C observability (~5 min)
+## Act 3 — The learning loop (~5 min)
 
-### Step 1 — Point at the sidecar terminal (Terminal 1)
+### Step 1 — Show the outbox watcher (Terminal 2)
 
-Switch to Terminal 1. Show the drain log lines that appeared while Act 1 ran:
-
-```
-drainer: noop.publish session.outcome
-drainer: noop.publish utilization.scoring.requested
-```
-
-**Narrate:** "Every time a Cursor session ends, the stop hook emits a structured
-event over a Unix socket to the sidecar. The sidecar drains it — in production
-this goes straight to Kafka and into omniintelligence."
-
-### Step 2 — Show the outbox watcher (Terminal 2)
-
-Switch to Terminal 2. It has been running `watch_outbox.py` since setup and shows
-the Act 1 session already formatted in color:
+Switch to Terminal 2. The Act 2 session is already there in color:
 
 ```
 ── SESSION OUTCOME  conv=437b7ae7…
   outcome  : SUCCESS
   agent    : documentation-architect  conf=0.73
-  prompts  : 1   files edited: 9   patterns injected: 0
+  prompts  : 3   files edited: 2   patterns injected: 0
+  reason   : files edited + completion marker
 
 ── SOCKET EVENT  utilization.scoring.requested  session=437b7ae7…
   patterns : auto-5f38e3a94eac
 ```
 
-Point out the fields: agent matched, confidence score, files edited, which patterns
-were injected.
+**Narrate:** "When the session ended, the stop hook wrote a structured record —
+agent used, outcome, files changed, patterns injected — and emitted it over a
+Unix socket to the sidecar."
 
-**Narrate:** "Every session produces a structured record — agent used, outcome,
-files changed, patterns injected. This is the same schema omniintelligence expects.
-Connect Kafka and these flow directly into the intelligence pipeline."
+### Step 2 — Show the sidecar terminal (Terminal 1)
 
-### Step 3 — Show the architecture diagram (optional)
+Switch to Terminal 1:
 
 ```
-Cursor IDE
-  └─ stop hook (stop.py)
-       └─► ~/.omnicursor/emit.sock
-             └─► sidecar (socket_listener)
-                   └─► ~/.omnicursor/outbox.jsonl   (durable)
-                         └─► drain_loop (2s tick)
-                               └─► Kafka/Redpanda      (production)
-                                     └─► omniintelligence
-                                           └─► pattern injection
-                                                 └─► next Cursor session
+drainer: kafka.publish session.outcome → onex.evt.omnicursor.session-outcome.v1
+drainer: kafka.publish utilization.scoring.requested → onex.cmd.omniintelligence.utilization-scoring.v1
 ```
 
-**Narrate:** "Option C puts OmniCursor on the same infrastructure as OmniClaude.
-The gap closes at the event bus level — same topics, same schema, same pipeline."
+**Narrate:** "The sidecar published those events to Redpanda. omniintelligence
+consumed them and updated its pattern weights in Postgres based on what worked."
+
+### Step 3 — Submit another prompt and show the loop closed
+
+Type any prompt in the same domain in Cursor. Then show Terminal 2:
+
+```
+── HOOK  user-prompt-submit  conv=b9d3e7f2…
+  agent    : documentation-architect  score=0.73
+  patterns injected: 2
+```
+
+**Narrate:** "The next prompt fetched updated patterns from omniintelligence and
+injected them. The model now has context shaped by the previous session's outcome.
+Every session makes the next one smarter — that's the loop."
+
+### Step 3b — Show the learning loop in OmniDash (if running)
+
+Open **http://localhost:3000/live-events** in a browser. Every Kafka event the sidecar
+published appears here in real time — show the `session.outcome` and
+`utilization.scoring.requested` events flowing in.
+
+Then open **http://localhost:3000/patterns**. The pattern weight deltas from
+omniintelligence appear here as `onex.evt.omniintelligence.pattern-*` events.
+
+**Narrate:** "This is the intelligence layer made visible. Every event the sidecar
+publishes appears on the left. The patterns page shows the weight updates — which
+patterns got stronger from a successful session, which decayed from a failed one."
+
+---
+
+### Step 4 — Show the full architecture (optional)
+
+```
+User prompt
+  └─► OmniCursor hook
+        ├─► GET /api/v1/patterns ◄──────────────────────┐
+        └─► agent routing + pattern injection            │
+                                                         │
+/execute-plan                                            │
+  └─► omnimarket bridge                                  │
+        └─► implement → PR → CI → merge                 │
+                                                         │
+Session ends                                             │
+  └─► outbox → sidecar → Kafka → omniintelligence        │
+                                    └─► weights updated ─┘
+```
+
+**Narrate:** "OmniCursor is the Cursor-native surface. omnimarket is the execution
+engine. omniintelligence is the brain that learns. Option B reads from it; Option C
+writes to it. Together they put Cursor on the same intelligence infrastructure as
+OmniClaude."
+
+---
+
+## Stopping the stack
+
+```bash
+bash scripts/run_bc_stack.sh --down
+```
 
 ---
 
 ## Troubleshooting
 
-### Terminal 2 shows no events after a session ends
+### No events in Terminal 2 after session ends
 
-1. Check Terminal 1 — the sidecar should show drain log lines. If not, the stop hook didn't fire. Make sure Cursor was opened on the worktree directory.
-2. Check the outbox directly:
-   ```bash
-   tail -5 ~/.omnicursor/outbox.jsonl
-   ```
-   If it's empty, the stop hook didn't write anything.
+1. Check Terminal 1 — sidecar should show drain lines. If not, the stop hook didn't fire.
+   Make sure Cursor is opened on `$OMNICURSOR_ROOT`.
+2. Check the outbox directly: `tail -5 ~/.omnicursor/outbox.jsonl`
+
+### run_ticket_pipeline fails or is not available
+
+Confirm `OMNIMARKET_ROOT` is set and points to a valid checkout:
+```bash
+ls "$OMNIMARKET_ROOT/src/omnimarket/nodes/node_ticket_pipeline"
+```
+Confirm the omnimarket MCP server is running in Cursor (check MCP status in Cursor settings).
+
+If the tool error includes `unrecognized arguments: --ticket-id`, the MCP server is using an older `omnicursor` install that passed a non-existent CLI flag. Reinstall from **this** checkout so it matches omnimarket’s argparse: `pip install -e ".[dev]"` in the same virtualenv your `mcp.json` uses to launch `python -m omnicursor.mcp.omnimarket_bridge_server`.
 
 ### Sidecar socket error on start
 
-The sidecar cleans up stale sockets automatically. If it still fails:
 ```bash
-rm -f ~/.omnicursor/emit.sock
-cd "$OMNICURSOR_ROOT" && bash scripts/run_sidecar.sh --publisher noop
+rm -f ~/.omnicursor/emit.sock && bash scripts/run_bc_stack.sh
 ```
+
+### intelligence-reducer not healthy
+
+```bash
+docker compose logs intelligence-reducer --tail=30
+docker compose ps
+```
+
+First-time build takes 5–10 minutes. If it fails, Postgres may not be ready yet —
+wait 30 seconds and try again.
 
 ### Linear MCP not responding
 
-Restart Cursor. MCP servers are started per IDE session. If still failing, check
-`~/.cursor/mcp.json` has the `linear` entry and the API key is set.
+Restart Cursor (MCP servers start per session). Check `~/.cursor/mcp.json` has the
+`linear` entry and the API key is valid.
 
-### pytest fails during execute-plan
+### gh CLI not authenticated
 
-OmniCursor will attempt up to 2 self-correction cycles. If tests still fail it
-marks the ticket blocked in Linear and reports what it tried. Show the Linear
-comment as evidence of autonomous error reporting — it's still a good demo moment.
+```bash
+gh auth login
+```
 
 ---
 
 ## Key env vars
 
-| Variable | Where | Effect |
+| Variable | Set by | Effect |
 |---|---|---|
-| `INTELLIGENCE_SERVICE_URL` | Cursor env | omniintelligence HTTP API for per-prompt pattern injection (default: `http://localhost:8053`) |
-| `OMNICURSOR_CONTEXT_API_TIMEOUT_MS` | Cursor env | Timeout for API pattern fetch in ms (default: 900) |
-| `OMNICURSOR_SIDECAR_INTERVAL` | Terminal 1 | Drain poll interval in seconds (default: 2) |
-| `KAFKA_BOOTSTRAP_SERVERS` | Terminal 1 | Broker address when using `--publisher kafka` (requires Docker + Redpanda) |
+| `OMNICURSOR_ROOT` | You | Path to this worktree |
+| `OMNIMARKET_ROOT` | You | Path to local omnimarket checkout |
+| `OMNIDASH_ROOT` | You (optional) | Path to OmniDash checkout — enables OmniDash startup in `run_bc_stack.sh` |
+| `OMNIDASH_FIXTURES_DIR` | You (optional) | Override fixture directory (default `/tmp/omnicursor-omnidash-fixtures`) |
+| `INTELLIGENCE_SERVICE_URL` | `run_bc_stack.sh` | omniintelligence reducer for per-prompt pattern fetch (`http://localhost:18091`) |
+| `OMNICURSOR_PATTERN_SYNC_HTTP` | `run_bc_stack.sh` | `1` = pull updated patterns from omniintelligence after each session |
+| `KAFKA_BOOTSTRAP_SERVERS` | `run_bc_stack.sh` | Redpanda broker (`localhost:19092`) |
 
 ---
 
-## Quick reference — skill commands
+## Quick reference — skills
 
 | Command | What it does |
 |---|---|
 | `/plan-ticket <description>` | Generates YAML contract, creates Linear ticket |
-| `/plan-to-tickets <plan-file>` | Creates one epic + one ticket per plan task |
-| `/execute-plan <plan-file>` | Full pipeline: review → tickets → implement → PR |
+| `/execute-plan <ticket or plan>` | Full pipeline via omnimarket: implement → PR → CI → merge |
 | `/hostile-reviewer --pr <N> --repo <owner/repo>` | Adversarial multi-model PR review |
-| `/recap` | Summarises the current session before handing off |
+| `/recap` | Summarises the current session |
+| `/systematic-debugging` | Structured root-cause debugging |
