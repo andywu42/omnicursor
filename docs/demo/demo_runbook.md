@@ -115,20 +115,18 @@ OmniDash will start automatically when `OMNIDASH_ROOT` is set and you run `run_b
 
 ## Day-of setup (do this before the audience arrives)
 
-Open **3 terminals** and leave them running (4 if using OmniDash).
+Open **3 terminals** and leave them running (add Terminal 4 if using OmniDash).
 
-### Terminal 1 — Full B+C stack (compose + sidecar + OmniDash)
+### Terminal 1 — Full B+C stack (compose + sidecar)
 
 ```bash
-export OMNIDASH_ROOT=/path/to/omnidash   # optional — omit if not using OmniDash
 cd "$OMNICURSOR_ROOT"
 source .venv/bin/activate
 bash scripts/run_bc_stack.sh
 ```
 
 Starts Redpanda, Postgres, Valkey, and omniintelligence, waits for the reducer to be
-healthy, then launches the sidecar with Kafka publishing enabled. If `OMNIDASH_ROOT`
-is set, also starts the OmniDash bridge and `npm run dev:local`.
+healthy, then launches the sidecar with Kafka publishing enabled.
 
 Expected output:
 
@@ -139,13 +137,6 @@ intelligence-reducer is healthy.
 Starting OmniCursor sidecar (publisher=kafka)...
   INTELLIGENCE_SERVICE_URL=http://localhost:18091
   OMNICURSOR_PATTERN_SYNC_HTTP=1
-
-Starting OmniDash bridge (fixtures → /tmp/omnicursor-omnidash-fixtures)...
-  OmniDash bridge PID=12345
-Starting OmniDash UI (npm run dev:local)...
-  OmniDash UI PID=12346
-  Open: http://localhost:3000/live-events
-         http://localhost:3000/patterns
 
 sidecar starting | publisher=kafka outbox=~/.omnicursor/outbox.jsonl socket=~/.omnicursor/emit.sock interval=2.0s
 socket listener bound to ~/.omnicursor/emit.sock
@@ -170,6 +161,28 @@ Expected: `{"status": "queued", "event_id": "..."}` from smoke test, and a color
 ### Terminal 3 — Cursor (your working IDE)
 
 Open Cursor pointed at `$OMNICURSOR_ROOT`. Hooks and skills are already configured.
+
+### Terminal 4 — OmniDash (optional)
+
+Requires a local OmniDash checkout with `npm install` and `npm run db:migrate` already done.
+
+```bash
+cd "$OMNIDASH_ROOT"
+
+# Start the OmniDash bridge (reads outbox, writes fixture files)
+source "$OMNICURSOR_ROOT/.venv/bin/activate"
+python -m omnicursor.drainer.omnidash_bridge \
+    --outbox ~/.omnicursor/outbox.jsonl \
+    --cursor ~/.omnicursor/omnidash.cursor \
+    --fixtures /tmp/omnicursor-omnidash-fixtures &
+
+# Start the OmniDash UI
+npm run dev:local
+```
+
+Then open:
+- `http://localhost:3000/live-events` — all Kafka events streaming in real time
+- `http://localhost:3000/patterns` — pattern weight updates from omniintelligence
 
 ---
 

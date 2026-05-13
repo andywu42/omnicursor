@@ -2,19 +2,13 @@
 # Starts the full Option B+C stack:
 #   1. Docker Compose (Redpanda + Postgres + Valkey + omniintelligence services)
 #   2. OmniCursor sidecar (socket → outbox → Kafka)
-#   3. OmniDash (optional — set OMNIDASH_ROOT to enable)
-#   4. OmniDash bridge (optional — writes fixture files alongside OmniDash)
 #
 # Usage:
 #   bash scripts/run_bc_stack.sh             # default: kafka publisher
 #   bash scripts/run_bc_stack.sh --noop      # use noop publisher (no Kafka writes)
 #   bash scripts/run_bc_stack.sh --down      # stop the compose stack and exit
 #
-# OmniDash (optional):
-#   export OMNIDASH_ROOT=/path/to/omnidash
-#   bash scripts/run_bc_stack.sh
-#   Then open: http://localhost:3000/live-events  (all Kafka events)
-#              http://localhost:3000/patterns      (pattern weight updates)
+# OmniDash runs in a separate terminal — see docs/demo/demo_runbook.md
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -68,28 +62,6 @@ echo ""
 export INTELLIGENCE_SERVICE_URL=http://localhost:18091
 export OMNICURSOR_PATTERN_SYNC_HTTP=1
 export KAFKA_BOOTSTRAP_SERVERS=localhost:19092
-
-# --- 3. Start OmniDash (optional) ---
-if [ -n "${OMNIDASH_ROOT:-}" ] && [ -d "$OMNIDASH_ROOT" ]; then
-    echo "Starting OmniDash bridge (fixtures → ${OMNIDASH_FIXTURES_DIR:-/tmp/omnicursor-omnidash-fixtures})..."
-    "$PYTHON" -m omnicursor.drainer.omnidash_bridge \
-        --outbox ~/.omnicursor/outbox.jsonl \
-        --cursor ~/.omnicursor/omnidash.cursor \
-        --fixtures "${OMNIDASH_FIXTURES_DIR:-/tmp/omnicursor-omnidash-fixtures}" \
-        --interval 2 &
-    OMNIDASH_BRIDGE_PID=$!
-    echo "  OmniDash bridge PID=$OMNIDASH_BRIDGE_PID"
-
-    echo "Starting OmniDash UI (npm run dev:local)..."
-    (cd "$OMNIDASH_ROOT" && npm run dev:local) &
-    OMNIDASH_UI_PID=$!
-    echo "  OmniDash UI PID=$OMNIDASH_UI_PID"
-    echo "  Open: http://localhost:3000/live-events  (all Kafka events)"
-    echo "         http://localhost:3000/patterns      (pattern weight updates)"
-    echo ""
-
-    trap "kill $OMNIDASH_BRIDGE_PID $OMNIDASH_UI_PID 2>/dev/null; docker compose -f \"$REPO_ROOT/compose.yaml\" down" EXIT
-fi
 
 exec "$PYTHON" -m omnicursor.sidecar.daemon \
     --publisher "$PUBLISHER" \
