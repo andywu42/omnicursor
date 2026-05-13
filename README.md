@@ -4,8 +4,8 @@ Cursor-native adaptation of OmniClaude — **rules**, **hooks**, and **file-back
 
 ## Architecture
 
-1. **Cursor Rules** (11 `.mdc` files in `.cursor/rules/`) — behavior surface; always-on + keyword-activated
-2. **Cursor Hooks** (`.cursor/hooks/`) — 4 hook entrypoints in `.cursor/hooks.json`, plus `_common.py` and `pattern_loader.py`. Deterministic, stdlib only, no LLM
+1. **Cursor Rules** (14 `.mdc` files in `.cursor/rules/`) — behavior surface; always-on + keyword-activated
+2. **Cursor Hooks** (`.cursor/hooks/`) — 4 hook entrypoints in `.cursor/hooks.json`, commands under `.cursor/hooks/scripts/`, plus helpers in `hooks/lib/`, `_common.py`, and `pattern_loader.py`. Deterministic, stdlib only, no LLM
 3. **Python library** (`src/omnicursor/`) — `agents`, `skills`, `compliance`, node contracts — for **pytest**, scripting, and rubric checks
 
 ## Quick Start
@@ -39,14 +39,14 @@ This repo ships a tracked pre-commit hook at `.githooks/pre-commit`.
 
 Deterministic Python scripts on Cursor lifecycle events. Configured in `.cursor/hooks.json`.
 
-| Hook | Script | What it does |
+| Hook | Script (see `.cursor/hooks.json`) | What it does |
 |------|--------|--------------|
-| `beforeSubmitPrompt` | `on_prompt.py` | Three-strategy agent scoring, emits `{"systemMessage": ...}` with agent + confidence + learned patterns |
-| `beforeShellExecution` | `on_shell.py` | Two-tier command guard: HARD_BLOCK (deny), SOFT_WARN (allow + warning) |
-| `afterFileEdit` | `on_edit.py` | Logs edits, runs diagnostic `ruff check` on Python files |
-| `stop` | `on_stop.py` | Session outcome classification (4-gate) and summaries |
+| `beforeSubmitPrompt` | `.cursor/hooks/scripts/user-prompt-submit.py` | Multi-strategy agent scoring; injects learned patterns + agent persona into the prompt (`systemMessage` / routing hooks output) |
+| `beforeShellExecution` | `.cursor/hooks/scripts/shell-guard.py` | Two-tier command guard: HARD_BLOCK (deny), SOFT_WARN (allow + warning) |
+| `afterFileEdit` | `.cursor/hooks/scripts/post-edit.py` | Diagnostic `ruff check` / `tsc` on edited files; does not modify sources |
+| `stop` | `.cursor/hooks/scripts/stop.py` | Session outcome classification (4-gate), outbox + sidecar socket when Option C is enabled |
 
-Supporting modules: `_common.py`, `pattern_loader.py`. All hooks use stdlib only.
+Thin wrappers `on_prompt.py`, `on_shell.py`, `on_edit.py`, `on_stop.py` may still exist for alternate setups; **Cursor loads the `scripts/` paths above**. Supporting modules: `_common.py`, `pattern_loader.py`, `hooks/lib/*`. All hook commands use stdlib only.
 
 ## Python library (tests & CI)
 
@@ -58,7 +58,7 @@ Supporting modules: `_common.py`, `pattern_loader.py`. All hooks use stdlib only
 
 ## Agent Configs
 
-17 JSON configs in [`.cursor/agents/`](./.cursor/agents/) define activation patterns for prompt-based routing. Hooks (`on_prompt.py`) and `agents.py` use the same three-strategy scoring (`HARD_FLOOR = 0.55`).
+17 JSON configs in [`.cursor/agents/`](./.cursor/agents/) define activation patterns for prompt-based routing. Hooks (`user-prompt-submit.py` → `agent_scoring.score_agent`) and `agents.py` share the same scoring engine (`HARD_FLOOR = 0.55`; see `src/omnicursor/scoring.py`).
 
 ## Skills
 

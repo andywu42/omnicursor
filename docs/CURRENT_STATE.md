@@ -6,9 +6,9 @@ This document describes what the repo contains, what works, and what is in progr
 
 ## What OmniCursor is
 
-OmniCursor is a Cursor IDE plugin that brings OmniNode-style intelligence to Cursor sessions. It does three things:
+OmniCursor is a Cursor-native layer (rules, hooks, and a Python library) that brings OmniNode-style intelligence to Cursor sessions. It does three things:
 
-1. **Routes every prompt** to the best-fit agent using a three-strategy scoring engine
+1. **Routes every prompt** to the best-fit agent using a multi-strategy scoring engine
 2. **Injects learned patterns** into each prompt's system message so the model benefits from past session outcomes
 3. **Emits structured events** to the OmniNode event bus so session data feeds back into the intelligence pipeline
 
@@ -24,12 +24,12 @@ OmniCursor/
 │   ├── hooks.json          — registers the 4 hook entry points
 │   ├── hooks/scripts/      — the 4 hook scripts
 │   ├── hooks/lib/          — shared hook libraries
-│   ├── agents/             — 18 agent JSON configs
-│   ├── rules/              — 13 Cursor rules (.mdc)
-│   └── skills/             — 16 skill directories (mirrored from skills/)
-├── skills/                 — 16 skill markdown definitions
+│   ├── agents/             — 17 agent JSON configs
+│   ├── rules/              — 14 Cursor rules (.mdc)
+│   └── skills/             — 17 skill directories (mirrored from skills/)
+├── skills/                 — 17 skill markdown definitions (plus skills/README.md)
 ├── src/omnicursor/         — Python library (tests, CI, automation)
-├── tests/                  — 24 test files, 691 tests
+├── tests/                  — 27 `test_*.py` modules, `conftest.py`, 698 tests
 ├── eval/                   — routing evaluation scripts + labeled data
 ├── docs/                   — documentation
 ├── compose.yaml            — local Docker stack (Redpanda, Postgres, intelligence services)
@@ -51,17 +51,18 @@ OmniCursor/
 
 ## Agent routing
 
-Every prompt is scored against 18 agents using three strategies in order:
+Every prompt is scored against **17 agents**. For each agent, `score_agent` in `src/omnicursor/scoring.py` (re-exported by `.cursor/hooks/lib/agent_scoring.py`) combines these strategies; the best score wins:
 
-1. **Exact match** on explicit trigger phrases → 0.95 confidence
-2. **Fuzzy match** via SequenceMatcher → 0.70–0.80 confidence
-3. **Keyword overlap** on activation keywords → 0.55–0.85 confidence
+1. **Exact substring** on `explicit_triggers` → **0.95**
+2. **Exact substring** on `context_triggers` → **0.80** (only if no stronger match)
+3. **Fuzzy match** via `SequenceMatcher` on explicit triggers vs. prompt tokens — length-aware minimum similarity (**0.85** / **0.78** / **0.72** for short / medium / long triggers); the score is the winning ratio
+4. **Keyword overlap** on `activation_keywords` → scaled **0.55–0.85** (at least two overlapping keywords)
 
-`HARD_FLOOR = 0.55` — anything below this falls back to `polymorphic-agent`. The scoring logic is shared between the hook (`user-prompt-submit.py`) and the Python library (`src/omnicursor/scoring.py`) — single source of truth.
+`HARD_FLOOR = 0.55` — only agents scoring **≥ 0.55** can win selection; if none do, routing falls back to `polymorphic-agent`. For deeper detail, see `docs/dev/ROUTING_DEDUPLICATION.md`.
 
 ---
 
-## The 16 skills
+## The 17 skills
 
 Skills are Markdown files that teach Claude how to run a structured workflow. They activate when the user types `/skill-name` in Cursor.
 
@@ -69,6 +70,7 @@ Skills are Markdown files that teach Claude how to run a structured workflow. Th
 |---|---|
 | `systematic-debugging` | Structured root-cause debugging |
 | `brainstorming` | Structured ideation |
+| `docs-reality-sync` | Align documentation with current behavior |
 | `writing-plans` | Write implementation plans |
 | `plan-ticket` | Generate YAML contract + create Linear ticket |
 | `plan-to-tickets` | Batch ticket creation from a plan file |
@@ -179,11 +181,11 @@ Start just Redpanda: `docker compose up redpanda -d`
 
 ```bash
 source .venv/bin/activate
-pytest tests/ -q          # 691 tests
+pytest tests/ -q          # 698 tests (pytest --collect-only)
 ruff check src/ tests/ .cursor/hooks/   # lint
 ```
 
-All 691 tests pass on `main` and `intelligence/option-c`. The pre-commit hook runs both automatically.
+**698** tests collect under `tests/`; the full suite passes in CI and via `.githooks/pre-commit` on a healthy `main` checkout (verify locally with `pytest tests/ -q`).
 
 ---
 
@@ -191,22 +193,16 @@ All 691 tests pass on `main` and `intelligence/option-c`. The pre-commit hook ru
 
 | Branch | What it contains |
 |---|---|
-| `main` | Stable base — hooks, routing, pattern learning (Option A), pattern sync (Option B) |
-| `intelligence/option-b` | Option B work — same as main, PR open |
-| `intelligence/option-c` | Everything in main + Option C sidecar daemon + Kafka publisher + demo scripts. PR open against main. |
+| `main` | Default branch — hooks, routing, pattern learning (Option A), pattern sync (Option B), and Option C (sidecar, outbox, drainer, Kafka publisher, event registry, demo scripts) |
+| `intelligence/option-b` | Topic branch for Option B–era work; compare to `main` with `git diff` / `git log` if you rely on it |
+| `intelligence/option-c` | Topic branch for Option C integration; may match or diverge from `main` — compare before assuming parity |
+
+Other remotes (for example `feature/omnimarket-mcp-bridge`) exist for in-flight work and are not listed here.
 
 ---
 
-## What is NOT yet in main
+## Option C and `main`
 
-Everything in `intelligence/option-c` that isn't in `main` yet:
+The Option C stack (sidecar daemon, socket drain, Kafka/Redpanda path, outbox, and smoke tooling) **lives on `main`**: `src/omnicursor/drainer/`, `src/omnicursor/sidecar/`, `src/omnicursor/session_outbox.py`, `scripts/run_sidecar.sh`, `scripts/smoke_test.py`, `scripts/watch_outbox.py`, `config/event_registry/omnicursor.yaml`, and per-prompt integrations in `user-prompt-submit.py` where applicable. **`tests/test_sidecar.py`** collects **13** sidecar-focused tests.
 
-- `src/omnicursor/drainer/` — full drainer module
-- `src/omnicursor/sidecar/` — socket listener + daemon
-- `src/omnicursor/session_outbox.py` — outbox writer
-- `scripts/run_sidecar.sh`, `scripts/smoke_test.py`, `scripts/watch_outbox.py`
-- `config/event_registry/omnicursor.yaml` — topic registry
-- Per-prompt omniintelligence API injection in `user-prompt-submit.py`
-- `tests/test_sidecar.py` — 16 sidecar tests
-
-These land in main once the `intelligence/option-c` PR is merged.
+Use branch **`intelligence/option-c`** only when you need history or a parallel line of work — it is not required to obtain Option C sources; **`main` already contains them**.

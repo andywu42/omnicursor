@@ -15,8 +15,8 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
-# v0 calibration — chosen so fuzzy keyword hits (0.55–0.75) are decisive
-# enough to be useful, while exact matches (0.95) are always unambiguous.
+# v0 calibration — chosen so fuzzy keyword hits (0.55–0.85) can win candidates,
+# while exact substring triggers still score 0.95 / 0.80 and dominate when present.
 # Evaluated against eval/routing_labeled_prompts.csv (101 prompts):
 # macro precision ≥ 0.80, macro recall ≥ 0.60 (CI gate in test_routing_eval.py).
 HARD_FLOOR: float = 0.55

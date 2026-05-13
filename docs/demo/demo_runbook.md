@@ -13,7 +13,6 @@ Set this once before starting:
 
 ```bash
 export OMNICURSOR_ROOT=<absolute path to OmniCursor worktree>
-# e.g. export OMNICURSOR_ROOT=/home/andyw/cs490/omninode/OmniCursor/.worktrees/intelligence-option-bc
 ```
 
 ---

@@ -13,13 +13,17 @@ from typing import Dict, List, Tuple
 def outbox_row_to_events(row: Dict) -> List[Tuple[str, Dict]]:
     """Map one outbox row to a list of (event_type, payload) tuples.
 
-    Always returns at least one tuple for "session.outcome".
+    Returns [] for non-session-outcome rows (e.g. hook events, socket events).
+    Always returns at least one tuple for "session.outcome" on session outcome rows.
     Appends a second tuple for "utilization.scoring.requested" only when
     injected_pattern_ids is a non-empty list.
 
     Raises KeyError if any required field is missing — callers must catch
     this and treat the row as a poison line (advance cursor, log warning).
     """
+    if row.get("schema_version") != "omnicursor.session_outcome.v1":
+        return []
+
     outcome: str = row["session_outcome"]
     reason: str = row["session_outcome_reason"]
     session_id: str = row["conversation_id"]
