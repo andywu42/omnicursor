@@ -39,6 +39,25 @@ echo "Starting compose stack (Redpanda + Postgres + Valkey + omniintelligence)..
 docker compose -f "$REPO_ROOT/compose.yaml" up -d
 
 echo ""
+echo "Waiting for Postgres to be healthy..."
+for i in $(seq 1 30); do
+    if docker compose -f "$REPO_ROOT/compose.yaml" exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+        echo "Postgres is ready."
+        break
+    fi
+    if [ "$i" -eq 30 ]; then
+        echo "WARNING: Postgres not ready after 60s — proceeding anyway."
+    fi
+    sleep 2
+done
+
+echo "Ensuring required databases exist..."
+docker compose -f "$REPO_ROOT/compose.yaml" exec -T postgres \
+    psql -U postgres -tc \
+    "SELECT 'CREATE DATABASE omnidash_analytics' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'omnidash_analytics')\gexec" \
+    >/dev/null 2>&1 || true
+
+echo ""
 echo "Waiting for intelligence-reducer to be healthy..."
 for i in $(seq 1 30); do
     if curl -sf http://localhost:18091/health >/dev/null 2>&1; then
