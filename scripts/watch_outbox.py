@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Watch ~/.omnicursor/outbox.jsonl and pretty-print new entries as they arrive."""
+import argparse
 import json
 import pathlib
 import sys
@@ -113,7 +114,37 @@ def _fmt_row(line: str) -> str:
 
 
 def main() -> None:
-    path = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else OUTBOX
+    parser = argparse.ArgumentParser(
+        description="Watch an omnicursor JSONL outbox and pretty-print new entries.",
+    )
+    parser.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help=f"Path to JSONL (default: {OUTBOX})",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print all existing lines once and exit (no watch loop).",
+    )
+    args = parser.parse_args()
+
+    path = pathlib.Path(args.path) if args.path else OUTBOX
+
+    if args.dry_run:
+        if not path.exists():
+            print(f"{RED}error: {path} does not exist{RESET}", file=sys.stderr)
+            sys.exit(1)
+        print(f"{DIM}Replaying existing lines (--dry-run){RESET}\n")
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            formatted = _fmt_row(line)
+            print(formatted)
+            print()
+        return
+
     if not path.exists():
         print(f"{YELLOW}Waiting for {path} to be created…{RESET}")
         while not path.exists():
