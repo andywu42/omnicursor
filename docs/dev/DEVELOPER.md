@@ -20,8 +20,8 @@ These existing files were reviewed and intentionally preserved as the architectu
 
 **OmniCursor extensions (not starter-pack originals):**
 
-- [`.cursor/rules/14-pr-review.mdc`](../.cursor/rules/14-pr-review.mdc): PR / merge-readiness (`review` → `.cursor/skills/pr-review/SKILL.md`)
-- [`.cursor/rules/15-handoff.mdc`](../.cursor/rules/15-handoff.mdc): session handoff (`handoff` → `.cursor/skills/handoff/SKILL.md`)
+- [`.cursor/rules/14-pr-review.mdc`](../.cursor/rules/14-pr-review.mdc): PR / merge-readiness (`review` → `.cursor/skills/onex-pr-review/SKILL.md`)
+- [`.cursor/rules/15-handoff.mdc`](../.cursor/rules/15-handoff.mdc): session handoff (`handoff` → `.cursor/skills/onex-handoff/SKILL.md`)
 
 ## Architecture (rules + hooks + library)
 
@@ -51,7 +51,7 @@ Structured helpers for **tests**, **CI**, and optional scripting.
 | Module | Purpose |
 |--------|---------|
 | `agents.py` | Agent routing with three-strategy scoring (exact/fuzzy/keyword), `HARD_FLOOR = 0.55`, dynamic JSON loading from `.cursor/agents/*.json`, `get_agent_context(category)` |
-| `skills.py` | Auto-discovers and loads Markdown skills from `.cursor/skills/<name>/SKILL.md` |
+| `skills.py` | Auto-discovers and loads Markdown skills from `.cursor/skills/onex-<slug>/SKILL.md` |
 | `compliance.py` | Keyword-based compliance registry with 3–5 checks per skill |
 | `node_contracts.py` | Cursor-native node `contract.yaml` validation |
 | `schemas.py` | Pydantic v2 models: `AgentContext`, `SkillDocument`, `ComplianceResult`, `PatternRecord`, `DatabaseStatus` |
@@ -74,15 +74,15 @@ Agent definitions are loaded dynamically from `.cursor/agents/*.json` (17 config
 
 ## How routing integrates with rules
 
-Hooks attempt **automatic** classification via `beforeSubmitPrompt`. Rules instruct the model to **read** `.cursor/skills/<name>/SKILL.md` and to use hook `systemMessage` hints when present.
+Hooks attempt **automatic** classification via `beforeSubmitPrompt`. Rules instruct the model to **read** `.cursor/skills/onex-<slug>/SKILL.md` and to use hook `systemMessage` hints when present.
 
-`get_agent_context(category)` in `agents.py` is the **test/CI** view of the same routing metadata — not a second routing system in the IDE. For example, `13-systematic-debugging.mdc` tells the model to read `.cursor/skills/systematic-debugging/SKILL.md` after self-classifying as debugging.
+`get_agent_context(category)` in `agents.py` is the **test/CI** view of the same routing metadata — not a second routing system in the IDE. For example, `13-systematic-debugging.mdc` tells the model to read `.cursor/skills/onex-systematic-debugging/SKILL.md` after self-classifying as debugging.
 
 ## Adding New Components
 
 **New agent**: Create `.cursor/agents/<name>.json` with `name`, `description`, `category`, `activation_patterns` (must include `explicit_triggers`, `context_triggers`, `activation_keywords`), `instructions`, `recommended_skill`. It auto-loads on startup.
 
-**New skill**: Create `.cursor/skills/<name>/SKILL.md` with YAML frontmatter (`name:`, `description:`). Add a compliance registry entry in `compliance.py` with 3–5 keyword checks. Update the expected sets in `tests/test_compliance.py` and `tests/test_skills.py`.
+**New skill**: Mirror to `.cursor/skills/onex-<slug>/SKILL.md` with YAML frontmatter (`name:`, `description:`). Add a compliance registry entry in `compliance.py` with 3–5 keyword checks. Update the expected sets in `tests/test_compliance.py` and `tests/test_skills.py`.
 
 ## Historical Starter-Pack Docs
 

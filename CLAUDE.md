@@ -74,7 +74,7 @@ Both `.cursor/hooks/scripts/user-prompt-submit.py` and `agents.py` use identical
 
 ### Skills (17 total)
 
-Canonical ids use the **`onex-<slug>`** prefix (filesystem paths remain `.cursor/skills/<slug>/`).
+Canonical ids use the **`onex-<slug>`** prefix (`skills/` files keep bare `<slug>` stems; mirrored Cursor copies live under `.cursor/skills/onex-<slug>/`).
 
 | Skill | Bucket | Source |
 |-------|--------|--------|
@@ -114,7 +114,7 @@ Canonical ids use the **`onex-<slug>`** prefix (filesystem paths remain `.cursor
 - `.cursor/hooks/scripts/post-edit.py` runs `ruff check` and `tsc --noEmit` diagnostically — never `--fix`, never modifies files.
 - `schemas.py` defines 5 Pydantic v2 models: `AgentContext`, `SkillDocument`, `ComplianceResult`, `PatternRecord`, `DatabaseStatus`. The agents, skills, and compliance modules depend on these models.
 - When adding a new agent: create `.cursor/agents/<name>.json` with `name`, `description`, `category`, `activation_patterns` (must include `explicit_triggers`, `context_triggers`, and `activation_keywords`), `instructions`, `recommended_skill` (use **`onex-<slug>`**). It auto-loads on startup.
-- When adding a new skill: create `skills/<name>.md` AND copy it to `.cursor/skills/<name>/SKILL.md` (both paths are required — CI scans `skills/*.md`, `SkillRepository` loads from `.cursor/skills/<name>/SKILL.md`). Add a smoke-check entry in `compliance.py` with 3–5 keyword/phrase checks. Update the expected sets in `tests/test_compliance.py` and `tests/test_skills.py`.
+- When adding a new skill: create `skills/<slug>.md` AND copy it to `.cursor/skills/onex-<slug>/SKILL.md` (both paths are required — CI scans `skills/*.md`, `SkillRepository` loads from `.cursor/skills/onex-<slug>/SKILL.md`). Add a smoke-check entry in `compliance.py` with 3–5 keyword/phrase checks. Update the expected sets in `tests/test_compliance.py` and `tests/test_skills.py`.
 - **Port track** (agents, skills, ONEX nodes & contracts from OmniClaude): `docs/dev/MIGRATION_PHASES_HANDOFF.md`. Hooks, Kafka, Linear-in-hooks, MCP bridge, and authoritative pattern writes are covered in `docs/OMNICURSOR_MIGRATION_PLAN.md` / other tracks.
 
 ## Omnimarket bridge

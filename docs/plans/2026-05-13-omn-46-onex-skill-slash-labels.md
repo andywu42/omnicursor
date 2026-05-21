@@ -6,7 +6,7 @@
 
 ### Description
 
-Cursor `/` picker should surface canonical `onex-<slug>` (or product-equivalent) for every project skill under `.cursor/skills/<slug>/`, consistent with README and compliance ids. Add YAML frontmatter to each `SKILL.md` per Cursor Agent Skills docs (`name`, `description`). If Cursor disallows `:` in `name`, use `onex-<slug>` in frontmatter and document the mapping to canonical `onex-<slug>` in README/QUICKSTART.
+Cursor `/` picker should surface canonical `onex-<slug>` (typically via subdirectory `.cursor/skills/onex-<slug>/`), consistent with README and compliance ids. Add YAML frontmatter to each `SKILL.md` per Cursor Agent Skills docs (`name`, `description`). If Cursor disallows `:` in `name`, use `onex-<slug>` in frontmatter and document the mapping to canonical `onex-<slug>` in README/QUICKSTART.
 
 ### Acceptance criteria
 

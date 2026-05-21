@@ -62,7 +62,7 @@ Thin wrappers `on_prompt.py`, `on_shell.py`, `on_edit.py`, `on_stop.py` may stil
 
 ## Skills
 
-17 Markdown skills in [`skills/`](./skills/): methodology documents the model reads from disk (paths in each rule / QUICKSTART). Each begins with YAML frontmatter whose **`name`** is **`onex-<slug>`** (matching the filename stem), uses `# onex-<slug>` as the Markdown title for humans, carries a compliance registry entry in `src/omnicursor/compliance.py`, and has a mirrored copy at `.cursor/skills/<slug>/SKILL.md` (Cursor **`/`** picker shows the frontmatter **`name`**).
+17 Markdown skills in [`skills/`](./skills/): methodology documents the model reads from disk (paths in each rule / QUICKSTART). Each begins with YAML frontmatter whose **`name`** is **`onex-<slug>`** (matching the filename stem), uses `# onex-<slug>` as the Markdown title for humans, carries a compliance registry entry in `src/omnicursor/compliance.py`, and has a mirrored copy at `.cursor/skills/onex-<slug>/SKILL.md`. The Cursor **`/`** picker normally labels each skill from that **subdirectory** name (`onex-<slug>`), so it matches canonical ids—not the bare slug alone.
 
 ## Directory guides
 

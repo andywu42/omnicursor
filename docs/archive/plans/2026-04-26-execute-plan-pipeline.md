@@ -165,7 +165,7 @@ git commit -m "feat: upgrade plan-ticket skill to create Linear tickets via MCP"
 
 **Files:**
 - Create: `skills/plan-review.md`
-- Create: `.cursor/skills/plan-review/SKILL.md`
+- Create: `.cursor/skills/onex-plan-review/SKILL.md`
 - Create: `.cursor/rules/17-plan-review.mdc`
 
 **Step 1: Write the failing compliance test**
@@ -287,11 +287,11 @@ Verdict: PASS
 ```
 ```
 
-**Step 6: Copy skill to .cursor/skills/plan-review/SKILL.md**
+**Step 6: Copy skill to .cursor/skills/onex-plan-review/SKILL.md**
 
 ```bash
-mkdir -p .cursor/skills/plan-review
-cp skills/plan-review.md .cursor/skills/plan-review/SKILL.md
+mkdir -p .cursor/skills/onex-plan-review
+cp skills/plan-review.md .cursor/skills/onex-plan-review/SKILL.md
 ```
 
 **Step 7: Write .cursor/rules/17-plan-review.mdc**
@@ -326,7 +326,7 @@ Expected: all PASS
 **Step 10: Commit**
 
 ```bash
-git add skills/plan-review.md .cursor/skills/plan-review/SKILL.md \
+git add skills/plan-review.md .cursor/skills/onex-plan-review/SKILL.md \
     .cursor/rules/17-plan-review.mdc src/omnicursor/compliance.py \
     tests/test_compliance.py
 git commit -m "feat: add plan-review skill with R1-R6 adversarial checks"
@@ -334,7 +334,7 @@ git commit -m "feat: add plan-review skill with R1-R6 adversarial checks"
 
 **Acceptance criteria:**
 - `skills/plan-review.md` exists with R1–R6 checks documented
-- `.cursor/skills/plan-review/SKILL.md` is identical copy
+- `.cursor/skills/onex-plan-review/SKILL.md` is identical copy
 - `.cursor/rules/17-plan-review.mdc` exists
 - `COMPLIANCE_REGISTRY["plan-review"]` has 3 checks
 - All compliance tests pass
@@ -345,7 +345,7 @@ git commit -m "feat: add plan-review skill with R1-R6 adversarial checks"
 
 **Files:**
 - Create: `skills/plan-to-tickets.md`
-- Create: `.cursor/skills/plan-to-tickets/SKILL.md`
+- Create: `.cursor/skills/onex-plan-to-tickets/SKILL.md`
 - Create: `.cursor/rules/16-plan-to-tickets.mdc`
 
 **Step 1: Write failing compliance test**
@@ -482,11 +482,11 @@ With `--dry-run`: parse the plan and print what would be created, but make no MC
   Record failed tasks in the summary.
 ```
 
-**Step 6: Copy to .cursor/skills/plan-to-tickets/SKILL.md**
+**Step 6: Copy to .cursor/skills/onex-plan-to-tickets/SKILL.md**
 
 ```bash
-mkdir -p .cursor/skills/plan-to-tickets
-cp skills/plan-to-tickets.md .cursor/skills/plan-to-tickets/SKILL.md
+mkdir -p .cursor/skills/onex-plan-to-tickets
+cp skills/plan-to-tickets.md .cursor/skills/onex-plan-to-tickets/SKILL.md
 ```
 
 **Step 7: Write .cursor/rules/16-plan-to-tickets.mdc**
@@ -515,7 +515,7 @@ Expected: all PASS
 **Step 10: Commit**
 
 ```bash
-git add skills/plan-to-tickets.md .cursor/skills/plan-to-tickets/SKILL.md \
+git add skills/plan-to-tickets.md .cursor/skills/onex-plan-to-tickets/SKILL.md \
     .cursor/rules/16-plan-to-tickets.mdc src/omnicursor/compliance.py \
     tests/test_compliance.py
 git commit -m "feat: add plan-to-tickets skill for batch Linear ticket creation"
@@ -533,7 +533,7 @@ git commit -m "feat: add plan-to-tickets skill for batch Linear ticket creation"
 
 **Files:**
 - Create: `skills/execute-plan.md`
-- Create: `.cursor/skills/execute-plan/SKILL.md`
+- Create: `.cursor/skills/onex-execute-plan/SKILL.md`
 - Create: `.cursor/rules/19-execute-plan.mdc`
 
 **Step 1: Write failing compliance test**
@@ -675,11 +675,11 @@ Next steps:
 | Dependency not met (prior ticket blocked) | Mark as skipped, continue |
 ```
 
-**Step 6: Copy to .cursor/skills/execute-plan/SKILL.md**
+**Step 6: Copy to .cursor/skills/onex-execute-plan/SKILL.md**
 
 ```bash
-mkdir -p .cursor/skills/execute-plan
-cp skills/execute-plan.md .cursor/skills/execute-plan/SKILL.md
+mkdir -p .cursor/skills/onex-execute-plan
+cp skills/execute-plan.md .cursor/skills/onex-execute-plan/SKILL.md
 ```
 
 **Step 7: Write .cursor/rules/19-execute-plan.mdc**
@@ -711,7 +711,7 @@ Expected: no errors
 **Step 10: Commit**
 
 ```bash
-git add skills/execute-plan.md .cursor/skills/execute-plan/SKILL.md \
+git add skills/execute-plan.md .cursor/skills/onex-execute-plan/SKILL.md \
     .cursor/rules/19-execute-plan.mdc src/omnicursor/compliance.py \
     tests/test_compliance.py
 git commit -m "feat: add execute-plan skill — autonomous pipeline orchestrator"
@@ -745,19 +745,19 @@ Add load tests:
 def test_load_plan_review_skill(repo: SkillRepository) -> None:
     doc = repo.load_skill("plan-review")
     assert doc is not None
-    assert doc.path == ".cursor/skills/plan-review/SKILL.md"
+    assert doc.path == ".cursor/skills/onex-plan-review/SKILL.md"
 
 
 def test_load_plan_to_tickets_skill(repo: SkillRepository) -> None:
     doc = repo.load_skill("plan-to-tickets")
     assert doc is not None
-    assert doc.path == ".cursor/skills/plan-to-tickets/SKILL.md"
+    assert doc.path == ".cursor/skills/onex-plan-to-tickets/SKILL.md"
 
 
 def test_load_execute_plan_skill(repo: SkillRepository) -> None:
     doc = repo.load_skill("execute-plan")
     assert doc is not None
-    assert doc.path == ".cursor/skills/execute-plan/SKILL.md"
+    assert doc.path == ".cursor/skills/onex-execute-plan/SKILL.md"
 ```
 
 **Step 3: Run tests**

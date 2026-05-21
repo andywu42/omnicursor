@@ -1,6 +1,6 @@
 # Skills have moved
 
-Skills are now at `.cursor/skills/<name>/SKILL.md` (Cursor-native format).
+Skills are mirrored under `.cursor/skills/onex-<stem>/SKILL.md` (Cursor slash-picker uses each `onex-<stem>` subdirectory name).
 Canonical skill ids are **`onex-<name>`** (same as the directory name `<name>`).
 
 Each skill is a directory containing a `SKILL.md` with YAML frontmatter

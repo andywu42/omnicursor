@@ -9,7 +9,8 @@ from .db import REPO_ROOT, SKILLS_DIR
 from .schemas import SkillDocument
 
 # Human-facing skill IDs in this repo use an ONEX-style namespace prefix.
-# Directory names under .cursor/skills/ remain slug-only (no hyphen in slug).
+# Cursor slash-picker labels follow subfolder names, so dirs use ``onex-<slug>``.
+# ``skill_slug()`` still strips legacy ``onex:`` and ``onex-`` prefixes to bare slug.
 SKILL_ID_PREFIX = "onex-"
 
 # Legacy colon form (disallowed in Cursor skill frontmatter `name` fields).
@@ -37,7 +38,7 @@ def canonical_skill_id(skill_name: str) -> str:
 
 
 class SkillRepository:
-    """Load skills from .cursor/skills/<name>/SKILL.md (Cursor-native format)."""
+    """Load skills from ``.cursor/skills/onex-<slug>/SKILL.md`` (Cursor-native format)."""
 
     def __init__(self, skills_dir: Path = SKILLS_DIR) -> None:
         self.skills_dir = skills_dir
@@ -53,11 +54,11 @@ class SkillRepository:
         )
 
     def resolve_path(self, skill_name: str) -> Path:
-        return self.skills_dir / skill_slug(skill_name) / "SKILL.md"
+        return self.skills_dir / canonical_skill_id(skill_name) / "SKILL.md"
 
     def load_skill(self, skill_name: str) -> SkillDocument:
-        slug = skill_slug(skill_name)
-        path = self.resolve_path(slug)
+        cid = canonical_skill_id(skill_name)
+        path = self.skills_dir / cid / "SKILL.md"
         if not path.exists():
             available = ", ".join(self.available_skills()) or "(none)"
             raise FileNotFoundError(
@@ -66,7 +67,7 @@ class SkillRepository:
             )
 
         return SkillDocument(
-            skill_name=canonical_skill_id(slug),
+            skill_name=cid,
             path=str(path.relative_to(REPO_ROOT)),
             content=path.read_text(encoding="utf-8"),
         )

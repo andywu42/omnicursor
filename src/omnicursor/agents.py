@@ -46,7 +46,7 @@ DEFAULT_CONTEXT = AgentContext(
     description="General-purpose fallback agent for unmatched categories.",
     instructions=[
         "Prefer the preserved Cursor rules before inventing a new workflow.",
-        "Read skills under skills/ when needed (IDs use the onex- prefix); use hook routing hints when present.",
+        "Read mirrored skills under .cursor/skills/onex-<slug>/ when needed; use hook routing hints when present.",
         "Check 00-omninode-concepts for shared vocabulary.",
     ],
     recommended_skill=None,

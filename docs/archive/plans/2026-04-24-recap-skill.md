@@ -383,7 +383,7 @@ Expected output: `recap skills/recap.md` followed by `content OK`
 **Step 3: Commit**
 
 ```bash
-git add skills/recap.md .cursor/skills/recap/SKILL.md
+git add skills/recap.md .cursor/skills/onex-recap/SKILL.md
 git commit -m "feat(recap): add recap skill file"
 ```
 
@@ -576,7 +576,7 @@ Expected: `INJECTED` then `FILE DELETED (good)`.
 python3 -c "from omnicursor.skills import SkillRepository; s=SkillRepository().load_skill('recap'); print('OK:', s.path)"
 ```
 
-Expected: `OK: .cursor/skills/recap/SKILL.md`
+Expected: `OK: .cursor/skills/onex-recap/SKILL.md`
 
 **Step 5: Verify full test suite**
 
