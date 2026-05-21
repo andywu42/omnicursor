@@ -5,5 +5,5 @@ alwaysApply: false
 ---
 
 When the user says "recap", "/recap", or "summarize this session":
-read `skills/recap.md` and follow it exactly (skill id **`onex:recap`**).
+read `skills/recap.md` and follow it exactly (skill id **`onex-recap`**).
 Do not write output to any file — display inline in chat only.

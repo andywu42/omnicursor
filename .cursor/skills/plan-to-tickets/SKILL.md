@@ -1,16 +1,16 @@
 ---
-name: "onex:plan-to-tickets"
+name: "onex-plan-to-tickets"
 description: >-
   Parse a plan file and batch-create Linear tickets — one per `## Task N:` section.
 disable-model-invocation: true
 ---
 
-# onex:plan-to-tickets
+# onex-plan-to-tickets
 
 Parse a plan file and batch-create Linear tickets — one per `## Task N:` section.
 Called automatically by execute_plan, or invoked directly.
 
-**Announce at start:** "I'm using the onex:plan-to-tickets skill."
+**Announce at start:** "I'm using the onex-plan-to-tickets skill."
 
 ## Usage
 
@@ -70,7 +70,7 @@ Task 3 → OMN-103 (blocked by OMN-101, OMN-102)
 
 Return this mapping to the caller (execute_plan uses it for ordered implementation).
 
-Downstream, `onex:execute-plan` invokes the Omnimarket MCP tool `run_ticket_pipeline` with **`ticket_id`** set to each Linear identifier from this mapping (e.g. `"OMN-101"`).
+Downstream, `onex-execute-plan` invokes the Omnimarket MCP tool `run_ticket_pipeline` with **`ticket_id`** set to each Linear identifier from this mapping (e.g. `"OMN-101"`).
 
 ## Dry Run
 

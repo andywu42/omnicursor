@@ -1,11 +1,11 @@
 ---
-name: "onex:insights-to-plan"
+name: "onex-insights-to-plan"
 description: >-
   Use this skill when you have analysis results, review findings, or session insights that need to be converted into an actionable implementation plan. The goal is to transform observations into prioritized, executable tasks.
 disable-model-invocation: true
 ---
 
-# onex:insights-to-plan
+# onex-insights-to-plan
 
 Use this skill when you have analysis results, review findings, or session insights that need to be converted into an actionable implementation plan. The goal is to transform observations into prioritized, executable tasks.
 

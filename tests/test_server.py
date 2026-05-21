@@ -15,27 +15,27 @@ def test_get_agent_context_returns_debugging_profile() -> None:
     payload = get_agent_context("debugging").model_dump(mode="json")
 
     assert payload["agent_name"] == "systematic-debugger"
-    assert payload["recommended_skill"] == "onex:systematic-debugging"
+    assert payload["recommended_skill"] == "onex-systematic-debugging"
 
 
 def test_get_agent_context_returns_brainstorming_profile() -> None:
     payload = get_agent_context("brainstorming").model_dump(mode="json")
 
     assert payload["agent_name"] == "brainstorming-guide"
-    assert payload["recommended_skill"] == "onex:brainstorming"
+    assert payload["recommended_skill"] == "onex-brainstorming"
 
 
 def test_invoke_skill_loads_markdown_skill() -> None:
     payload = _skill_payload("systematic-debugging")
 
-    assert payload["skill_name"] == "onex:systematic-debugging"
+    assert payload["skill_name"] == "onex-systematic-debugging"
     assert payload["path"] == ".cursor/skills/systematic-debugging/SKILL.md"
 
 
 def test_invoke_skill_loads_brainstorming_skill() -> None:
     payload = _skill_payload("brainstorming")
 
-    assert payload["skill_name"] == "onex:brainstorming"
+    assert payload["skill_name"] == "onex-brainstorming"
     assert payload["path"] == ".cursor/skills/brainstorming/SKILL.md"
 
 
@@ -45,7 +45,7 @@ def test_check_compliance_returns_result() -> None:
         "The symptom was an error. The cause is a bug. The fix updates the code. Run tests to verify.",
     ).model_dump(mode="json")
 
-    assert payload["skill_name"] == "onex:systematic-debugging"
+    assert payload["skill_name"] == "onex-systematic-debugging"
     assert payload["compliant"] is True
     assert payload["missing"] == []
 

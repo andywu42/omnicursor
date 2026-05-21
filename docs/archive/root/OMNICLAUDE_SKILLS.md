@@ -634,7 +634,7 @@ epic-team
 ```
 
 ### Dispatch Pattern
-Heavy computation dispatches to `Task(subagent_type="onex:polymorphic-agent")` with a detailed prompt. The calling skill handles:
+Heavy computation dispatches to `Task(subagent_type="onex-polymorphic-agent")` with a detailed prompt. The calling skill handles:
 - State persistence and phase transitions
 - Slack notifications
 - Git operations (commit, push)

@@ -154,7 +154,7 @@ Exit codes: `0` = PASS, `1` = FAIL (creates a Linear ticket), `2` = QUARANTINE (
 
 ## contract_sweep: Nightly Health Check
 
-`contract_sweep` runs in `/onex:session` Phase B as part of the quality gate, in two modes:
+`contract_sweep` runs in `/onex-session` Phase B as part of the quality gate, in two modes:
 
 ### Drift Mode (default)
 

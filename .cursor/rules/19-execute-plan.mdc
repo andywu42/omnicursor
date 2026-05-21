@@ -6,4 +6,4 @@ alwaysApply: false
 
 When the user says `/execute_plan` or "execute plan" or "run plan" or "implement plan" or "execute this plan":
 
-Read the plan file at the path provided. Then follow `skills/execute-plan.md` exactly (skill id **`onex:execute-plan`**).
+Read the plan file at the path provided. Then follow `skills/execute-plan.md` exactly (skill id **`onex-execute-plan`**).

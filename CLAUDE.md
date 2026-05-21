@@ -74,37 +74,37 @@ Both `.cursor/hooks/scripts/user-prompt-submit.py` and `agents.py` use identical
 
 ### Skills (17 total)
 
-Canonical ids use the **`onex:<slug>`** prefix (filesystem paths remain `.cursor/skills/<slug>/`).
+Canonical ids use the **`onex-<slug>`** prefix (filesystem paths remain `.cursor/skills/<slug>/`).
 
 | Skill | Bucket | Source |
 |-------|--------|--------|
-| `onex:systematic-debugging` | 1 | Original |
-| `onex:brainstorming` | 1 | Original |
-| `onex:writing-plans` | 1 | Original |
-| `onex:plan-ticket` | 3 | Original (upgraded to Linear MCP) |
-| `onex:pr-review` | 1 | Ported from OmniClaude |
-| `onex:pr-polish` | 1 | Ported from OmniClaude |
-| `onex:hostile-reviewer` | 1 | Ported from OmniClaude |
-| `onex:defense-in-depth` | 1 | Ported from OmniClaude |
-| `onex:docs-reality-sync` | 1 | Original |
-| `onex:merge-planner` | 1 | Ported from OmniClaude |
-| `onex:insights-to-plan` | 1 | Ported from OmniClaude |
-| `onex:handoff` | 1 | Ported from OmniClaude |
-| `onex:using-git-worktrees` | 1 | Ported from OmniClaude |
-| `onex:recap` | 1 | Original |
-| `onex:plan-review` | 1 | Original |
-| `onex:plan-to-tickets` | 3 | Original (Linear MCP) |
-| `onex:execute-plan` | 3 | Original (Linear MCP + autonomous pipeline) |
+| `onex-systematic-debugging` | 1 | Original |
+| `onex-brainstorming` | 1 | Original |
+| `onex-writing-plans` | 1 | Original |
+| `onex-plan-ticket` | 3 | Original (upgraded to Linear MCP) |
+| `onex-pr-review` | 1 | Ported from OmniClaude |
+| `onex-pr-polish` | 1 | Ported from OmniClaude |
+| `onex-hostile-reviewer` | 1 | Ported from OmniClaude |
+| `onex-defense-in-depth` | 1 | Ported from OmniClaude |
+| `onex-docs-reality-sync` | 1 | Original |
+| `onex-merge-planner` | 1 | Ported from OmniClaude |
+| `onex-insights-to-plan` | 1 | Ported from OmniClaude |
+| `onex-handoff` | 1 | Ported from OmniClaude |
+| `onex-using-git-worktrees` | 1 | Ported from OmniClaude |
+| `onex-recap` | 1 | Original |
+| `onex-plan-review` | 1 | Original |
+| `onex-plan-to-tickets` | 3 | Original (Linear MCP) |
+| `onex-execute-plan` | 3 | Original (Linear MCP + autonomous pipeline) |
 
 ### 3-bucket classification (from Cursor rules)
 
-- **Bucket 1** (onex:systematic-debugging, onex:brainstorming, onex:writing-plans, onex:pr-review, onex:pr-polish, onex:hostile-reviewer, onex:defense-in-depth, onex:docs-reality-sync, onex:merge-planner, onex:insights-to-plan, onex:handoff, onex:using-git-worktrees, onex:recap, onex:plan-review): pure methodology, no external calls.
+- **Bucket 1** (onex-systematic-debugging, onex-brainstorming, onex-writing-plans, onex-pr-review, onex-pr-polish, onex-hostile-reviewer, onex-defense-in-depth, onex-docs-reality-sync, onex-merge-planner, onex-insights-to-plan, onex-handoff, onex-using-git-worktrees, onex-recap, onex-plan-review): pure methodology, no external calls.
 - **Bucket 2**: (unused — formerly plan-ticket YAML-only mode)
-- **Bucket 3** (onex:plan-ticket, onex:plan-to-tickets, onex:execute-plan): Linear MCP integration via `tracker.*` tools. Requires Linear MCP configured in `~/.cursor/mcp.json`.
+- **Bucket 3** (onex-plan-ticket, onex-plan-to-tickets, onex-execute-plan): Linear MCP integration via `tracker.*` tools. Requires Linear MCP configured in `~/.cursor/mcp.json`.
 
 ### Smoke-check registry (`compliance.py`)
 
-`COMPLIANCE_REGISTRY` maps each of the 16 skills (keys **`onex:<slug>`**) to 3–5 keyword/phrase checks. `check_compliance(skill_name, response_summary)` accepts either a slug or a canonical id and returns a `ComplianceResult` with per-check pass/fail. These are **vocabulary smoke-checks** (does the response use the right terminology?), not behavioral compliance — a well-worded response can pass without doing real work. Renamed to "smoke-check" in docs; function/class names kept for API stability.
+`COMPLIANCE_REGISTRY` maps each of the 16 skills (keys **`onex-<slug>`**) to 3–5 keyword/phrase checks. `check_compliance(skill_name, response_summary)` accepts either a slug or a canonical id and returns a `ComplianceResult` with per-check pass/fail. These are **vocabulary smoke-checks** (does the response use the right terminology?), not behavioral compliance — a well-worded response can pass without doing real work. Renamed to "smoke-check" in docs; function/class names kept for API stability.
 
 ## Key constraints
 
@@ -113,7 +113,7 @@ Canonical ids use the **`onex:<slug>`** prefix (filesystem paths remain `.cursor
 - Hooks must use **Python stdlib only** (no pip dependencies).
 - `.cursor/hooks/scripts/post-edit.py` runs `ruff check` and `tsc --noEmit` diagnostically — never `--fix`, never modifies files.
 - `schemas.py` defines 5 Pydantic v2 models: `AgentContext`, `SkillDocument`, `ComplianceResult`, `PatternRecord`, `DatabaseStatus`. The agents, skills, and compliance modules depend on these models.
-- When adding a new agent: create `.cursor/agents/<name>.json` with `name`, `description`, `category`, `activation_patterns` (must include `explicit_triggers`, `context_triggers`, and `activation_keywords`), `instructions`, `recommended_skill` (use **`onex:<slug>`**). It auto-loads on startup.
+- When adding a new agent: create `.cursor/agents/<name>.json` with `name`, `description`, `category`, `activation_patterns` (must include `explicit_triggers`, `context_triggers`, and `activation_keywords`), `instructions`, `recommended_skill` (use **`onex-<slug>`**). It auto-loads on startup.
 - When adding a new skill: create `skills/<name>.md` AND copy it to `.cursor/skills/<name>/SKILL.md` (both paths are required — CI scans `skills/*.md`, `SkillRepository` loads from `.cursor/skills/<name>/SKILL.md`). Add a smoke-check entry in `compliance.py` with 3–5 keyword/phrase checks. Update the expected sets in `tests/test_compliance.py` and `tests/test_skills.py`.
 - **Port track** (agents, skills, ONEX nodes & contracts from OmniClaude): `docs/dev/MIGRATION_PHASES_HANDOFF.md`. Hooks, Kafka, Linear-in-hooks, MCP bridge, and authoritative pattern writes are covered in `docs/OMNICURSOR_MIGRATION_PLAN.md` / other tracks.
 

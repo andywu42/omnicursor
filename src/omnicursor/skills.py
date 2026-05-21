@@ -9,20 +9,30 @@ from .db import REPO_ROOT, SKILLS_DIR
 from .schemas import SkillDocument
 
 # Human-facing skill IDs in this repo use an ONEX-style namespace prefix.
-# Directory names under .cursor/skills/ remain slug-only (no colon).
-SKILL_ID_PREFIX = "onex:"
+# Directory names under .cursor/skills/ remain slug-only (no hyphen in slug).
+SKILL_ID_PREFIX = "onex-"
+
+# Legacy colon form (disallowed in Cursor skill frontmatter `name` fields).
+_LEGACY_COLON_PREFIX = "onex" + ":"
 
 
 def skill_slug(skill_name: str) -> str:
-    """Return filesystem slug for a skill, stripping a leading onex: prefix if present."""
+    """Return filesystem slug for a skill.
+
+    Accepts legacy colon-delimited skill ids (namespace ``onex`` immediately
+    followed by ``:`` and ``<slug>``) plus current hyphenated ``onex-<slug>``
+    canonical ids or bare filesystem slugs.
+    """
     s = skill_name.strip()
+    if s.startswith(_LEGACY_COLON_PREFIX):
+        return s[len(_LEGACY_COLON_PREFIX) :]
     if s.startswith(SKILL_ID_PREFIX):
         return s[len(SKILL_ID_PREFIX) :]
     return s
 
 
 def canonical_skill_id(skill_name: str) -> str:
-    """Return the canonical registry / API id: ``onex:<slug>``."""
+    """Return the canonical registry / API id: ``onex-<slug>``."""
     return f"{SKILL_ID_PREFIX}{skill_slug(skill_name)}"
 
 
@@ -33,7 +43,7 @@ class SkillRepository:
         self.skills_dir = skills_dir
 
     def available_skills(self) -> List[str]:
-        """Return sorted list of canonical skill ids (onex:<slug>) for each SKILL.md dir."""
+        """Return sorted list of canonical skill ids (onex-<slug>) for each SKILL.md dir."""
         if not self.skills_dir.is_dir():
             return []
         return sorted(

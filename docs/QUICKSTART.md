@@ -69,27 +69,27 @@ That's it — OmniCursor is running.
 
 Say the keyword in chat and Cursor reads the skill file and follows it.
 
-**Slash menu (`/`):** Each skill file uses Cursor Agent Skills YAML frontmatter. The `name` field matches the canonical id (`onex:<slug>` — for example `onex:brainstorming`). Typing `/` in chat shows those names so the picker aligns with OmniCursor hooks and docs that reference the `onex:` namespace.
+**Slash menu (`/`):** Each skill file uses Cursor Agent Skills YAML frontmatter. The `name` field matches the canonical id (`onex-<slug>` — for example `onex-brainstorming`). Typing `/` in chat shows those names so the picker aligns with OmniCursor hooks and docs that reference the `onex-` namespace.
 
 | Keyword | Skill | What it does |
 |---------|-------|--------------|
-| `recap` or `/recap` | onex:recap | Summarizes the current session inline; auto-injects previous session recap at start |
-| `brainstorm` | onex:brainstorming | Structured ideation with diverge → converge flow |
-| `debug` / `root cause` | onex:systematic-debugging | 5-phase root cause analysis — no guessing |
-| `write a plan` | onex:writing-plans | Implementation plan with TDD tasks and acceptance criteria |
-| `create ticket` | onex:plan-ticket | Converts a plan task into a structured Linear ticket |
-| `review this PR` | onex:pr-review | Structured PR review with severity classification |
-| `polish this PR` | onex:pr-polish | Pre-merge checklist: description, diff, CI, changelog |
-| `hostile review` | onex:hostile-reviewer | Adversarial multi-pass review — finds what polite review misses |
-| `defense in depth` | onex:defense-in-depth | Adds validation layers at system boundaries |
-| `docs drift` / `reality sync` | onex:docs-reality-sync | Inventory docs vs code; fix or archive drift |
-| `merge plan` | onex:merge-planner | Safe merge sequencing for complex branch stacks |
-| `insights to plan` | onex:insights-to-plan | Converts retrospective notes into actionable tasks |
-| `handoff` | onex:handoff | Saves session context so the next session picks up cleanly |
-| `worktree` | onex:using-git-worktrees | Isolated branch workspaces without stashing |
-| `/plan-review` | onex:plan-review | Adversarial R1–R6 check on a plan file before execution |
-| `/plan-to-tickets` | onex:plan-to-tickets | Parse a plan file and batch-create Linear tickets |
-| `/execute_plan` | onex:execute-plan | Full autonomous pipeline: review → tickets → implement |
+| `recap` or `/recap` | onex-recap | Summarizes the current session inline; auto-injects previous session recap at start |
+| `brainstorm` | onex-brainstorming | Structured ideation with diverge → converge flow |
+| `debug` / `root cause` | onex-systematic-debugging | 5-phase root cause analysis — no guessing |
+| `write a plan` | onex-writing-plans | Implementation plan with TDD tasks and acceptance criteria |
+| `create ticket` | onex-plan-ticket | Converts a plan task into a structured Linear ticket |
+| `review this PR` | onex-pr-review | Structured PR review with severity classification |
+| `polish this PR` | onex-pr-polish | Pre-merge checklist: description, diff, CI, changelog |
+| `hostile review` | onex-hostile-reviewer | Adversarial multi-pass review — finds what polite review misses |
+| `defense in depth` | onex-defense-in-depth | Adds validation layers at system boundaries |
+| `docs drift` / `reality sync` | onex-docs-reality-sync | Inventory docs vs code; fix or archive drift |
+| `merge plan` | onex-merge-planner | Safe merge sequencing for complex branch stacks |
+| `insights to plan` | onex-insights-to-plan | Converts retrospective notes into actionable tasks |
+| `handoff` | onex-handoff | Saves session context so the next session picks up cleanly |
+| `worktree` | onex-using-git-worktrees | Isolated branch workspaces without stashing |
+| `/plan-review` | onex-plan-review | Adversarial R1–R6 check on a plan file before execution |
+| `/plan-to-tickets` | onex-plan-to-tickets | Parse a plan file and batch-create Linear tickets |
+| `/execute_plan` | onex-execute-plan | Full autonomous pipeline: review → tickets → implement |
 
 ---
 

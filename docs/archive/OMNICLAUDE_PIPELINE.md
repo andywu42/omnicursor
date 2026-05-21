@@ -104,9 +104,9 @@ Returns: `queued | nothing_to_merge | partial | error`
 
 ---
 
-## Nightly Orchestrator: `/onex:session`
+## Nightly Orchestrator: `/onex-session`
 
-`/onex:session` (formerly `/autopilot`, deprecated OMN-8340) runs the full nightly close-out across the org. Each phase runs as a fresh `claude -p` invocation with its own context window. Results are checkpointed so a Phase B failure does not lose Phase A work.
+`/onex-session` (formerly `/autopilot`, deprecated OMN-8340) runs the full nightly close-out across the org. Each phase runs as a fresh `claude -p` invocation with its own context window. Results are checkpointed so a Phase B failure does not lose Phase A work.
 
 ### Phase A — Prepare (sequential)
 
@@ -170,7 +170,7 @@ Linear Ticket
     └─ Track B: /pr-polish    (fix → re-review → merge)
 
 
-/onex:session                 ← nightly orchestrator
+/onex-session                 ← nightly orchestrator
     ├─ Phase A: worktree GC + merge-sweep drain
     ├─ Phase B: quality gates (integration tests, DoD sweep)
     ├─ Phase C: release + redeploy

@@ -1,17 +1,17 @@
 ---
-name: "onex:execute-plan"
+name: "onex-execute-plan"
 description: >-
   Autonomous implementation pipeline. Reads a plan file, reviews it adversarially,
 disable-model-invocation: true
 ---
 
-# onex:execute-plan
+# onex-execute-plan
 
 Autonomous implementation pipeline. Reads a plan file, reviews it adversarially,
 creates Linear tickets, then runs the full ticket pipeline (implement → PR → CI → merge)
 for each ticket via the Omnimarket bridge.
 
-**Announce at start:** "I'm using the onex:execute-plan skill."
+**Announce at start:** "I'm using the onex-execute-plan skill."
 
 ## Usage
 

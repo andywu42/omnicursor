@@ -8,6 +8,7 @@ check (vocabulary sniff), not behavioral compliance.
 For real compliance, see: docs/dev/COMPLIANCE_FUTURE_WORK.md (planned).
 """
 
+
 from __future__ import annotations
 
 from typing import Dict, List, Tuple
@@ -20,7 +21,7 @@ from .skills import canonical_skill_id
 # A check passes if ANY of its keywords appear in the response summary.
 # NOTE: This is vocabulary matching only — not behavioral verification.
 COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
-    "onex:systematic-debugging": [
+    "onex-systematic-debugging": [
         ("states_problem_clearly", [
             "symptom", "error", "failure", "bug", "issue", "problem",
             "traceback", "exception", "regression",
@@ -38,7 +39,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "check", "assert", "validate", "reproduce",
         ]),
     ],
-    "onex:brainstorming": [
+    "onex-brainstorming": [
         ("asks_clarifying_questions", [
             "question", "?", "which", "what", "how", "where", "why",
             "option", "choice", "prefer",
@@ -60,7 +61,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "docs/plans/", "design.md", "handoff", "next step",
         ]),
     ],
-    "onex:writing-plans": [
+    "onex-writing-plans": [
         ("has_plan_header", [
             "goal", "architecture", "tech stack", "implementation plan",
         ]),
@@ -81,7 +82,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "acceptance criteria",
         ]),
     ],
-    "onex:plan-ticket": [
+    "onex-plan-ticket": [
         ("detects_repo", [
             "omniclaude", "omnibase_core", "omnibase_infra", "omnidash",
             "omniintelligence", "omnimemory", "omninode_infra", "repo",
@@ -107,7 +108,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "url",
         ]),
     ],
-    "onex:pr-review": [
+    "onex-pr-review": [
         ("classifies_by_severity", [
             "critical", "major", "minor", "nit", "severity", "priority",
         ]),
@@ -122,7 +123,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "fix", "suggest", "should", "must", "change", "update",
         ]),
     ],
-    "onex:pr-polish": [
+    "onex-pr-polish": [
         ("resolves_conflicts", [
             "conflict", "merge", "resolve", "unmerged", "rebase",
         ]),
@@ -137,7 +138,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "phase", "status", "ready", "push", "summary",
         ]),
     ],
-    "onex:hostile-reviewer": [
+    "onex-hostile-reviewer": [
         ("uses_adversarial_stance", [
             "adversarial", "skeptical", "assume", "hidden", "defect",
         ]),
@@ -156,7 +157,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "overall verdict", "stable",
         ]),
     ],
-    "onex:defense-in-depth": [
+    "onex-defense-in-depth": [
         ("traces_data_flow", [
             "data flow", "trace", "origin", "entry", "failure",
         ]),
@@ -175,7 +176,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "unit test each", "layer independently",
         ]),
     ],
-    "onex:docs-reality-sync": [
+    "onex-docs-reality-sync": [
         ("inventories_documentation", [
             "inventory", "readme", "docs/",
         ]),
@@ -190,7 +191,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
         ]),
         ("summarizes_actions", ["summary", "updated", "table", "follow-up"]),
     ],
-    "onex:merge-planner": [
+    "onex-merge-planner": [
         ("classifies_pr_type", [
             "accelerator", "normal", "blocked", "classify", "type",
         ]),
@@ -205,7 +206,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "merge target",
         ]),
     ],
-    "onex:insights-to-plan": [
+    "onex-insights-to-plan": [
         ("categorizes_insights", [
             "insight", "finding", "observation", "friction", "category",
         ]),
@@ -219,7 +220,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "acceptance", "criteria", "done", "outcome", "verify",
         ]),
     ],
-    "onex:handoff": [
+    "onex-handoff": [
         ("captures_session_context", [
             "branch", "commit", "file", "session", "context",
         ]),
@@ -233,7 +234,7 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "blocker", "warning", "failing", "blocked", "issue",
         ]),
     ],
-    "onex:using-git-worktrees": [
+    "onex-using-git-worktrees": [
         ("selects_directory", [
             "directory", "worktrees", "location", "path", "config",
         ]),
@@ -248,22 +249,22 @@ COMPLIANCE_REGISTRY: Dict[str, List[Tuple[str, List[str]]]] = {
             "worktree ready", "baseline passing",
         ]),
     ],
-    "onex:recap": [
+    "onex-recap": [
         ("states_outcome", ["outcome", "success", "failed", "abandoned", "unknown"]),
         ("lists_files_edited", ["files edited", "file edited"]),
         ("suggests_next_steps", ["next step", "suggested", "suggest"]),
     ],
-    "onex:plan-review": [
+    "onex-plan-review": [
         ("checks_count_integrity", ["count", "task", "numeric", "found", "prose"]),
         ("checks_acceptance_criteria", ["acceptance", "criteria", "testable", "vague"]),
         ("states_verdict", ["verdict", "pass", "fail", "critical", "major"]),
     ],
-    "onex:plan-to-tickets": [
+    "onex-plan-to-tickets": [
         ("parses_task_sections", ["task", "## task", "heading", "section", "found"]),
         ("creates_epic", ["epic", "parent epic"]),
         ("returns_ticket_ids", ["ticket", "linear", "created", "OMN-", "id"]),
     ],
-    "onex:execute-plan": [
+    "onex-execute-plan": [
         ("calls_plan_review", ["plan-review", "review", "r1", "r2", "verdict"]),
         ("calls_plan_to_tickets", ["plan-to-tickets", "ticket", "linear", "epic", "OMN-"]),
         ("reports_summary", ["passed", "blocked", "skipped", "summary"]),

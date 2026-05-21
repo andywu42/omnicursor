@@ -664,12 +664,12 @@ class TestAgentPersona:
         cfg = {
             "description": "",
             "instructions": [],
-            "recommended_skill": "onex:systematic-debugging",
+            "recommended_skill": "onex-systematic-debugging",
         }
         out = _mod.build_context(
             "debug-intelligence", 0.9, "r", [], "prompt", conv_id, agent_config=cfg
         )
-        assert "onex:systematic-debugging" in out
+        assert "onex-systematic-debugging" in out
 
     def test_no_skill_skips_skill_line(
         self, fake_sessions: Path, conv_id: str

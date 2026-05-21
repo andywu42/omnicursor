@@ -1,11 +1,11 @@
 ---
-name: "onex:systematic-debugging"
+name: "onex-systematic-debugging"
 description: >-
   Use this skill when the user is debugging a failure, regression, flaky behavior, traceback, or unclear root cause.
 disable-model-invocation: true
 ---
 
-# onex:systematic-debugging
+# onex-systematic-debugging
 
 Use this skill when the user is debugging a failure, regression, flaky behavior, traceback, or unclear root cause.
 

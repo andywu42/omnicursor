@@ -9,7 +9,7 @@ def test_systematic_debugging_fully_compliant() -> None:
         "Verification: run pytest to confirm the test passes."
     )
     result = check_compliance("systematic-debugging", summary)
-    assert result.skill_name == "onex:systematic-debugging"
+    assert result.skill_name == "onex-systematic-debugging"
     assert result.compliant is True
     assert result.missing == []
     assert all(result.checks.values())
@@ -39,7 +39,7 @@ def test_brainstorming_fully_compliant() -> None:
         "Saved to docs/plans/2026-03-28-webhook-design.md."
     )
     result = check_compliance("brainstorming", summary)
-    assert result.skill_name == "onex:brainstorming"
+    assert result.skill_name == "onex-brainstorming"
     assert result.compliant is True
     assert result.missing == []
 
@@ -57,31 +57,31 @@ def test_brainstorming_missing_approaches() -> None:
 
 def test_unknown_skill_returns_no_registry() -> None:
     result = check_compliance("nonexistent-skill", "some summary")
-    assert result.skill_name == "onex:nonexistent-skill"
+    assert result.skill_name == "onex-nonexistent-skill"
     assert result.compliant is False
-    assert "no_registry_entry_for_onex:nonexistent-skill" in result.missing
+    assert "no_registry_entry_for_onex-nonexistent-skill" in result.missing
     assert result.checks == {}
 
 
 def test_all_skills_have_registry_entries() -> None:
     expected = {
-        "onex:systematic-debugging",
-        "onex:brainstorming",
-        "onex:writing-plans",
-        "onex:plan-ticket",
-        "onex:pr-review",
-        "onex:pr-polish",
-        "onex:hostile-reviewer",
-        "onex:defense-in-depth",
-        "onex:docs-reality-sync",
-        "onex:merge-planner",
-        "onex:insights-to-plan",
-        "onex:handoff",
-        "onex:using-git-worktrees",
-        "onex:recap",
-        "onex:plan-review",
-        "onex:plan-to-tickets",
-        "onex:execute-plan",
+        "onex-systematic-debugging",
+        "onex-brainstorming",
+        "onex-writing-plans",
+        "onex-plan-ticket",
+        "onex-pr-review",
+        "onex-pr-polish",
+        "onex-hostile-reviewer",
+        "onex-defense-in-depth",
+        "onex-docs-reality-sync",
+        "onex-merge-planner",
+        "onex-insights-to-plan",
+        "onex-handoff",
+        "onex-using-git-worktrees",
+        "onex-recap",
+        "onex-plan-review",
+        "onex-plan-to-tickets",
+        "onex-execute-plan",
     }
     assert set(COMPLIANCE_REGISTRY.keys()) == expected
 
@@ -121,7 +121,7 @@ def test_hostile_reviewer_fully_compliant() -> None:
         "Final verdict: risks_noted. Stable after pass 4."
     )
     result = check_compliance("hostile-reviewer", summary)
-    assert result.skill_name == "onex:hostile-reviewer"
+    assert result.skill_name == "onex-hostile-reviewer"
     assert result.compliant is True
     assert result.missing == []
     assert all(result.checks.values())
@@ -171,7 +171,7 @@ def test_docs_reality_sync_fully_compliant() -> None:
         "Summary table: updated 3 docs, archived 1."
     )
     result = check_compliance("docs-reality-sync", summary)
-    assert result.skill_name == "onex:docs-reality-sync"
+    assert result.skill_name == "onex-docs-reality-sync"
     assert result.compliant is True
     assert result.missing == []
 

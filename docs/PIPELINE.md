@@ -16,8 +16,8 @@ User prompt
         └─► system message injected: agent persona + relevant patterns
 
 /execute-plan typed
-  └─► onex:plan-review — adversarial plan check
-  └─► onex:plan-to-tickets — Linear tickets created
+  └─► onex-plan-review — adversarial plan check
+  └─► onex-plan-to-tickets — Linear tickets created
   └─► run_ticket_pipeline(ticket_id) — omnimarket bridge
         └─► IMPLEMENT → LOCAL_REVIEW → CREATE_PR → TEST_ITERATE
               → CI_WATCH → PR_REVIEW → AUTO_MERGE → DONE
@@ -71,7 +71,7 @@ Fires on every prompt before the model sees anything.
 
 ---
 
-## Stage 2 — Execution (onex:execute-plan skill)
+## Stage 2 — Execution (onex-execute-plan skill)
 
 Triggered when the user types `/execute-plan`. Accepts either a plan file
 (`/execute-plan docs/plans/my-plan.md`) or a single ticket ID
@@ -79,8 +79,8 @@ Triggered when the user types `/execute-plan`. Accepts either a plan file
 
 | Phase | What happens |
 |---|---|
-| Plan review | `onex:plan-review` — adversarial check. Stops on CRITICAL/MAJOR findings. Skipped when passing a ticket ID directly. |
-| Ticket creation | `onex:plan-to-tickets` — one Linear epic + one ticket per plan task. Skipped when passing a ticket ID directly. |
+| Plan review | `onex-plan-review` — adversarial check. Stops on CRITICAL/MAJOR findings. Skipped when passing a ticket ID directly. |
+| Ticket creation | `onex-plan-to-tickets` — one Linear epic + one ticket per plan task. Skipped when passing a ticket ID directly. |
 | Pipeline | `run_ticket_pipeline(ticket_id)` via omnimarket MCP bridge for each ticket. The MCP argument is **`ticket_id`**; the subprocess passes it as the **last positional** argument to `node_ticket_pipeline` (after optional `--skip-test-iterate` / `--dry-run`), not `--ticket-id`. |
 
 **omnimarket `node_ticket_pipeline` phases:**
