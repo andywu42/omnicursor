@@ -10,4 +10,4 @@ This directory holds OmniCursor plugin assets: rules, hooks, agents, and skills.
 
 **Also here:** [`hooks.json`](./hooks.json) — maps Cursor lifecycle events (`beforeSubmitPrompt`, `beforeShellExecution`, etc.) to hook scripts.
 
-**Docs:** [Root README](../README.md), [Quickstart](../docs/QUICKSTART.md), [CLAUDE.md](../CLAUDE.md) (commands and constraints).
+**Docs:** [Root README](../README.md), [Quickstart](../docs/QUICKSTART.md), [Architecture](../docs/ARCHITECTURE.md) (architecture, conventions, constraints).

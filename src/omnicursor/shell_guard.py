@@ -31,7 +31,7 @@ HARD_BLOCK: List[re.Pattern[str]] = [
     ]
 ]
 
-# SOFT_WARN patterns — 11 advisory-tier patterns (OmniCursor-native).
+# SOFT_WARN patterns — 12 advisory-tier patterns (OmniCursor-native).
 SOFT_WARN: List[Tuple[re.Pattern[str], str]] = [
     (re.compile(p, re.IGNORECASE), reason)
     for p, reason in [

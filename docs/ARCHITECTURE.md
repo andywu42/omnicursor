@@ -1,269 +1,399 @@
-# OmniCursor Architecture
+# Architecture
 
-OmniCursor is a **Cursor plugin** that ports the OmniClaude methodology to Cursor: **rules**, **hooks**, **skills**, and **agent routing** — with a Python library for tests and CI. It runs locally by default; integration with the wider OmniNode stack (OmniIntelligence, OmniMarket, Kafka) is optional.
+> **Status:** Living reference. Last verified against the codebase: **June 2026**.
+> When this document and the code disagree, the **code wins** — see [Source-of-truth hierarchy](#source-of-truth-hierarchy).
 
----
+OmniCursor is a **Cursor-native adaptation of OmniClaude**. It packages an
+agent/methodology layer as a **Cursor plugin** and backs it with a Python
+library that exists for **tests, CI, and optional scripting** — the IDE
+behavior itself does not import that library at runtime.
 
-## Design goals
-
-| Goal | How |
-|------|-----|
-| **Deterministic hooks** | Four lifecycle scripts — stdlib only, always exit 0, never block the UI |
-| **Thin Cursor layer** | Rules and skills teach behavior; OmniMarket owns workflow/node logic |
-| **Testable routing** | Shared scoring engine in hooks and `src/omnicursor/scoring.py` |
-| **Progressive integration** | Works offline (Option A); optional HTTP patterns (B) and event bus (C) |
+This document explains how the pieces fit together. For *what currently works*
+versus *what is opt-in or aspirational*, read [`CURRENT_STATE.md`](./CURRENT_STATE.md).
 
 ---
 
-## System overview
+## 1. The big picture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Cursor IDE (any workspace)                  │
-├─────────────────────────────────────────────────────────────────────┤
-│  Rules (.cursor/rules/*.mdc)     — always-on + keyword methodology│
-│  Skills (.cursor/skills/onex-*/SKILL.md) — multi-step workflows     │
-│  Agents (.cursor/agents/*.json)  — routing personas                 │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │ user prompts, shell, edits, stop
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Hooks (.cursor/hooks/scripts/*.py) — stdlib-only, non-blocking     │
-│    beforeSubmitPrompt │ beforeShellExecution │ afterFileEdit │ stop │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │
-          ┌─────────────────────┼─────────────────────┐
-          ▼                     ▼                     ▼
-   ~/.omnicursor/         src/omnicursor/      Optional stack
-   (local state)          (tests, sidecar,      (compose.yaml:
-                          drainer, bridge)       Redpanda, omniintelligence)
+                        Cursor IDE (user prompt, shell, file edits, stop)
+                                          │
+        ┌─────────────────────────────────┴─────────────────────────────────┐
+        │                         BEHAVIOR SURFACE                            │
+        │                                                                     │
+        │  Rules (.cursor/rules/*.mdc)      → injected guidance / methodology │
+        │  Skills (skills/*.md + mirror)    → multi-step playbooks the model  │
+        │                                     reads from disk                 │
+        │  Agents (.cursor/agents/*.json)   → routing personas                │
+        │  Hooks (.cursor/hooks/scripts/)   → deterministic, stdlib-only      │
+        │                                     lifecycle scripts               │
+        └─────────────────────────────────┬─────────────────────────────────┘
+                                          │ reads / writes
+                                          ▼
+                          ~/.omnicursor/  (events, sessions, patterns, outbox)
+                                          │
+                                          ▼ (optional, opt-in)
+        ┌─────────────────────────────────────────────────────────────────┐
+        │  src/omnicursor/  — tests, CI, scripting, sidecar/drainer/bridge │
+        │                                                                   │
+        │  Linear MCP │ OmniMarket nodes │ Kafka/Redpanda │ compose stack   │
+        └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Runtime split:** Hooks do **not** import `src/omnicursor/` at runtime. The Python package mirrors hook logic for pytest, hosts the sidecar/drainer, and exposes the OmniMarket bridge for Bucket 3 skills.
+There are **four behavior surfaces** plus **one support library**:
+
+| Surface | Location | Role |
+|---------|----------|------|
+| **Rules** | `.cursor/rules/*.mdc` (14 files) | Instructions injected into the model's context |
+| **Skills** | `skills/*.md` (17) + `.cursor/skills/onex-*/SKILL.md` (17) | Methodology playbooks the model reads on demand |
+| **Agents** | `.cursor/agents/*.json` (17) | Routing personas scored against the prompt |
+| **Hooks** | `.cursor/hooks/scripts/*.py` (4) | Deterministic, stdlib-only lifecycle scripts |
+| **Library** | `src/omnicursor/` | Routing, scoring, skills, compliance, contracts, bridge, drainer, sidecar — for **pytest/CI/scripting only** |
+
+> **Key boundary:** the hooks are **stdlib-only** and must run without a
+> virtualenv. The active scripts reach the library logic by inserting `src/` (and
+> `.cursor/hooks/lib/`) onto `sys.path` and importing `omnicursor.*` **directly** —
+> the library is the single source of truth, the scripts are thin entrypoints.
+> Self-contained *duplicated copies* of the logic exist only in the unwired legacy
+> `.cursor/hooks/on_*.py`. See [§4 Hooks](#4-hooks) and [§7 Node contracts](#7-node-contracts-onex-shaped).
 
 ---
 
-## The four surfaces
+## 2. Rules
 
-### 1. Cursor rules (`.cursor/rules/`)
+14 `.mdc` files in `.cursor/rules/`, each Markdown with YAML frontmatter.
 
-14 `.mdc` files define the **behavior surface** for the model.
+- **Always-on (4):** `00-omninode-concepts`, `01-codebase-research`,
+  `02-no-secrets-in-commits`, `03-omnicursor-ownership` — all carry
+  `alwaysApply: true`.
+- **Keyword/`@mention`-activated (10):** `10`–`19` drive methodology workflows
+  (brainstorming, writing plans, plan-ticket, systematic debugging, PR review,
+  handoff, plan-to-tickets, plan-review, recap, execute-plan). Each rule points
+  the model at the matching `.cursor/skills/onex-<slug>/SKILL.md`.
 
-| Always on | Keyword-activated |
-|-----------|-------------------|
-| `00-omninode-concepts` — ONEX vocabulary, 3-bucket model, pipeline stages | `10` brainstorming · `11` writing-plans · `12` plan-ticket |
-| `01-codebase-research` — bounded file-reading policy | `13` systematic-debugging · `14` pr-review · `15` handoff |
-| `02-no-secrets-in-commits` | `16` plan-to-tickets · `17` plan-review · `18` recap · `19` execute-plan |
-| `03-omnicursor-ownership` — OmniCursor vs OmniMarket boundary | |
-
-See [`.cursor/rules/README.md`](../.cursor/rules/README.md).
-
-### 2. Cursor hooks (`.cursor/hooks/`)
-
-Configured in [`.cursor/hooks.json`](../.cursor/hooks.json). Each hook is a thin Python entrypoint under `scripts/` with shared helpers in `lib/`, `_common.py`, and `pattern_loader.py`.
-
-| Hook | Script | Blocks UI? | Role |
-|------|--------|------------|------|
-| `beforeSubmitPrompt` | `user-prompt-submit.py` | No | Agent scoring, pattern injection via `systemMessage`, session init |
-| `beforeShellExecution` | `shell-guard.py` | **Yes** (hard blocks) | Dangerous-command guard, DoD enforcement |
-| `afterFileEdit` | `post-edit.py` | No | Diagnostic `ruff` / `tsc` — never auto-fix |
-| `stop` | `stop.py` | No | Session outcome (4-gate), recap, outbox write |
-
-**Constraints (non-negotiable):**
-
-- Stdlib only in hook processes — no pip dependencies
-- Always exit 0; failures are logged, not propagated to Cursor
-- Only `shell-guard` may return `{"permission": "deny"}`
-- Heavy work (Kafka, node execution) stays out of hooks
-
-### 3. Skills (17)
-
-Canonical Markdown lives under [`skills/`](../skills/); Cursor discovers mirrored copies at [`.cursor/skills/onex-<slug>/SKILL.md`](../.cursor/skills/).
-
-Each skill has:
-
-- YAML frontmatter with `name: onex-<slug>` (shown in the `/` picker)
-- A compliance registry entry in `src/omnicursor/compliance.py`
-- A keyword-activated rule in `.cursor/rules/10`–`19` (where applicable)
-
-### 4. Python library (`src/omnicursor/`)
-
-Used by **pytest**, **CI**, and optional local tooling — not by hooks at runtime.
-
-| Module | Role |
-|--------|------|
-| `scoring.py` | Canonical `score_agent` engine (`HARD_FLOOR = 0.55`) |
-| `agents.py` | Category → routing context; merges with `.cursor/agents/*.json` |
-| `skills.py` | Load skill Markdown into `SkillDocument` |
-| `compliance.py` | Keyword rubric checks for skill adherence |
-| `session_outbox.py` | Durable outbox writer (`omnicursor.session_outcome.v1`) |
-| `sidecar/` + `drainer/` | Option C: socket listener → outbox → Kafka/OmniDash |
-| `sync/pattern_sync.py` | Option B: HTTP pull from omniintelligence |
-| `omnimarket_bridge.py` | Subprocess bridge to local OmniMarket nodes |
-| `nodes/*/contract.yaml` | ONEX-shaped contracts binding hooks to node semantics |
-
-See [`src/omnicursor/README.md`](../src/omnicursor/README.md).
+Rules are **teaching/rubric artifacts** — change them deliberately.
 
 ---
 
-## 3-bucket skill model
+## 3. Skills
 
-Skills are classified by how much external infrastructure they need. Rule `00-omninode-concepts` is the source of truth.
+17 methodology playbooks. Each skill exists in **two places**:
 
-| Bucket | Rule | Examples |
-|--------|------|----------|
-| **1 — Pure methodology** | No external service; may write local files | `onex-brainstorming`, `onex-writing-plans`, `onex-pr-review`, `onex-systematic-debugging` |
-| **2 — Local-data hybrid** | Reads bounded local files / cwd context | `onex-plan-ticket` |
-| **3 — External integration** | Requires Linear MCP, Kafka, or OmniMarket nodes | `onex-plan-to-tickets`, `onex-execute-plan` |
+| Copy | Path | Who reads it |
+|------|------|--------------|
+| **Canonical** | `skills/<slug>.md` (bare slug) | **CI/parity** scans here |
+| **Cursor mirror** | `.cursor/skills/onex-<slug>/SKILL.md` | The Cursor `/` picker **and** the Python `SkillRepository` load here |
 
-**Cursor rules cannot fake Bucket 3 success.** If Linear or Kafka is unreachable, skills must document manual steps or dry-run output — not simulate API calls.
+> **The two copies are asymmetric.** `SkillRepository` (via
+> `db.SKILLS_DIR = REPO_ROOT/.cursor/skills`) loads **only** the mirror, while CI
+> scans `skills/`. Editing only `skills/<slug>.md` changes nothing at runtime
+> until the mirror is updated — and `tests/test_skills.py::test_skills_dual_path_parity`
+> enforces that the two are **content-identical** (UTF-8 text comparison).
+
+**Canonical id:** `onex-<slug>` (e.g. `onex-systematic-debugging`). The bare
+`<slug>` is the on-disk stem; the loader also accepts a legacy `onex:` colon form
+for back-compat.
+
+### 3-bucket classification
+
+Buckets describe a skill's external-dependency level:
+
+| Bucket | Meaning | Count | Skills |
+|--------|---------|-------|--------|
+| **1** | Pure methodology, no external calls | 14 | brainstorming, writing-plans, systematic-debugging, pr-review, pr-polish, hostile-reviewer, defense-in-depth, docs-reality-sync, merge-planner, insights-to-plan, handoff, using-git-worktrees, recap, plan-review |
+| **2** | *(retired — formerly plan-ticket YAML-only mode)* | 0 | — |
+| **3** | Linear MCP integration (`tracker.*` tools) | 3 | plan-ticket, plan-to-tickets, execute-plan |
+
+> Buckets live only in prose (rule `00` / this doc) — there is **no machine-readable
+> bucket field** in the skill frontmatter, so they can silently drift. A live
+> example of the **rule-vs-skill** distinction: the **skill** `onex-plan-ticket`
+> is treated as Bucket 3 (Linear MCP), but the **rule** `12-plan-ticket.mdc`
+> still self-labels **Bucket 2** and emits a local YAML ticket-contract template
+> with no external calls. "Bucket 2" is *retired at the skill level* but still
+> used at the rule level.
+
+### Plan-ticket repo detection
+
+The `12-plan-ticket` rule picks the target OmniNode repo for a ticket with a
+**deterministic 3-priority chain** — this is the canonical spec that
+`tests/rubrics/plan-ticket.md` grades against. Valid repo names (exactly these 7):
+`omniclaude`, `omnibase_core`, `omnibase_infra`, `omnidash`, `omniintelligence`,
+`omnimemory`, `omninode_infra`.
+
+1. **Priority 1 — CWD or prompt match.** If the working-directory path *or* the
+   prompt text contains one of the 7 names (case-insensitive substring), use it. **Stop.**
+2. **Priority 2 — README project name.** Otherwise, if `README.md` names one of the
+   7 as its project (e.g. an `# omniclaude` heading), use it. **Stop.**
+3. **Priority 3 — Ask.** Otherwise, ask exactly **one** multiple-choice question
+   (options A–G for the 7 repos + H "Other") and wait for the answer — **never guess.**
+
+Research is bounded (rule `01`): the rule reads at most `README.md` plus one
+directory listing, then emits the YAML ticket-contract template.
 
 ---
 
-## 5-stage pipeline
+## 4. Hooks
+
+Four Cursor lifecycle events are wired in `.cursor/hooks.json` to four
+**stdlib-only** scripts:
+
+| Event | Active script | Can block? | Role |
+|-------|---------------|------------|------|
+| `beforeSubmitPrompt` | `scripts/user-prompt-submit.py` | No | Classifies the prompt → best agent; selects/injects learned patterns; emits a `systemMessage` |
+| `beforeShellExecution` | `scripts/shell-guard.py` | **Yes** | Two-tier guard: **9 HARD_BLOCK** (deny) + **12 SOFT_WARN** (allow + warning); optional DoD/dispatch gates |
+| `afterFileEdit` | `scripts/post-edit.py` | No | Diagnostic `ruff check` (`.py`) and `tsc --noEmit` (`.ts`) — **never `--fix`**, never modifies files |
+| `stop` | `scripts/stop.py` | No | Aggregates session events → classifies outcome (4-gate); writes recap, patterns, and the durable outbox |
+
+- **Only `shell-guard.py` can deny** (via `{"permission": "deny"}`). The other
+  three are informational — Cursor ignores their stdout. They all append to
+  `~/.omnicursor/events.jsonl`.
+- All hooks **fail open**: any exception degrades to allow / no-op so a hook can
+  never crash Cursor.
+
+### Active scripts vs. legacy `on_*.py`
+
+> ⚠️ **There are two parallel hook implementations.** The **active** ones under
+> `.cursor/hooks/scripts/*.py` are the only ones wired in `hooks.json`; they
+> delegate to `src/omnicursor/` (via `lib/*.py` shims). The top-level
+> `.cursor/hooks/on_prompt.py` / `on_shell.py` / `on_edit.py` / `on_stop.py` are
+> **legacy, self-contained, and NOT wired** — they can never run in Cursor and
+> survive only because `tests/test_hooks_*.py` still import them. Their behavior
+> has drifted from the active scripts (e.g. `on_edit.py` runs ruff only, no
+> `tsc`; `on_shell.py` lacks the DoD/dispatch tiers). Treat `scripts/*.py` as
+> authoritative.
+
+### Session outcome classification (`stop`)
+
+`session_outcome.derive_session_outcome(status, events)` is a 4-gate tree:
+
+1. **Failed** — failure status or error markers (`Traceback`, `…Error:`, `N FAILED`).
+2. **Success** — work was done (edits / prompt classifications) **and** completion markers present.
+3. **Abandoned** — no completion markers **and** duration < 60 s.
+4. **Unknown** — catch-all.
+
+---
+
+## 5. Agent routing
+
+17 JSON configs in `.cursor/agents/` define routing personas
+(`name`, `category`, `activation_patterns`, `instructions`, `recommended_skill`).
+Both the prompt hook and the library score prompts with the **same engine**,
+`src/omnicursor/scoring.py` (hooks reach it through the
+`.cursor/hooks/lib/agent_scoring.py` shim).
+
+**Two merge layers** (`agents.py`): hardcoded `AGENT_CONTEXTS`
+(4 categories: debugging, brainstorming, planning, ticketing) merged with the JSON
+configs via `{**AGENT_CONTEXTS, **_JSON_AGENTS}`; `ALIASES` maps shorthand → canonical.
+
+**Three (gated) scoring strategies** — note these are early-exit *tiers*, not a
+flat "max of all four":
+
+1. **Exact** substring on `explicit_triggers` (0.95) / `context_triggers` (0.80).
+2. **Fuzzy** (`SequenceMatcher`, length-aware threshold) — only tried if best < 0.90.
+3. **Keyword overlap** on `activation_keywords` (scaled 0.55–0.85) — only tried if best < 0.70 and ≥2 keywords overlap.
+
+`HARD_FLOOR = 0.55`; candidates below it are discarded.
+
+> ⚠️ **Fallback naming split.** The library returns `DEFAULT_CONTEXT`
+> (`agent_name = "omnicursor-generalist"`) on no match, but the eval harness/CI
+> and `polymorphic-agent.json` use `"polymorphic-agent"`. They refer to "the
+> fallback" but are **not the same string** — a known inconsistency.
+> Calibration constants (0.95 / 0.80 / keyword scaling / fuzzy bands) are marked
+> *v0, unevaluated* in code; only `HARD_FLOOR` and the eval precision/recall
+> floors are gated by `tests/test_routing_eval.py`.
+
+---
+
+## 6. The learning loop (patterns)
+
+OmniCursor closes a feedback loop between routing and session outcomes:
 
 ```
-1. BRAINSTORM  → design doc          (Bucket 1 — onex-brainstorming)
-2. PLAN        → implementation plan (Bucket 1 — onex-writing-plans)
-3. TICKET      → YAML ticket template (Bucket 2 — onex-plan-ticket)
-4. DECOMPOSE   → Linear child tickets (Bucket 3 — onex-plan-to-tickets)
-5. EXECUTE     → agent-driven implementation (Bucket 3 — onex-execute-plan)
+prompt hook                            stop hook
+───────────                            ─────────
+select relevance-ranked patterns       derive session outcome (4-gate)
+from ~/.omnicursor/learned_patterns    │
+.json, inject as systemMessage,        ├─ on SUCCESS: reinforce the injected
+emit prompt_classified event   ───────▶│   pattern_ids (weight boost, utilization)
+carrying injected_pattern_ids          │   + mine new patterns from high-confidence
+                                       │   prompt_classified events
+                                       └─ decay stale / evict overflow patterns
 ```
 
-Stages 1–3 work offline. Stages 4–5 need Linear MCP and/or OmniMarket.
+- **Store:** `~/.omnicursor/learned_patterns.json` (record fields: `pattern_id`,
+  `pattern`, `domain`, `weight`, `success_count`, `injection_count`,
+  `utilization_successes`, `last_seen`, `description`).
+- **Selection** (`prompt_pattern_selection.py`) scores relevance on **domain +
+  description-word overlap** (threshold 0.7, cap 5) — it **ignores `weight`**.
+- **Learning** (`pattern_writer.py`) holds the weight/decay/eviction constants
+  (all marked *v0, unevaluated*).
+
+> Three independent copies of `STOPWORDS`/keyword extraction exist (routing in
+> `scoring.py`, selection in `prompt_pattern_selection.py`, learning in
+> `pattern_writer.py`) — edit all three together.
 
 ---
 
-## Agent routing
+## 7. Node contracts (ONEX-shaped)
 
-17 JSON configs in [`.cursor/agents/`](../.cursor/agents/) define activation patterns. On every prompt, `user-prompt-submit.py` runs multi-strategy scoring:
+Each hook is also described by a declarative **`contract.yaml`** modeled on
+OmniClaude's per-node contract format, under `src/omnicursor/nodes/<node>/`.
+`node_contracts.py` discovers, parses (Pydantic, `extra="allow"`), caches, and
+best-effort validates them against the real `.cursor/hooks.json`.
 
-1. Exact trigger match
-2. Fuzzy match
-3. Keyword overlap
+There are **5 contracts for 4 hook events** — `beforeSubmitPrompt` is described
+by **two** nodes:
 
-If the best score is below **`HARD_FLOOR` (0.55)**, routing falls back to **`polymorphic-agent`**.
+| Node | `node_type` | Hook event | Blocking |
+|------|-------------|------------|----------|
+| `node_cursor_prompt_orchestrator` | ORCHESTRATOR_GENERIC | `beforeSubmitPrompt` | No |
+| `node_cursor_pattern_injection_compute` | COMPUTE | `beforeSubmitPrompt` | No |
+| `node_cursor_shell_guard_effect` | EFFECT_GUARD | `beforeShellExecution` | **Yes** |
+| `node_cursor_file_edit_effect` | EFFECT_POST_EDIT | `afterFileEdit` | No |
+| `node_cursor_session_outcome_orchestrator` | ORCHESTRATOR_GENERIC | `stop` | No |
 
-Output is injected as a `systemMessage` JSON block: agent persona, recommended skill, learned patterns, delegation rule, and a once-per-session handoff nudge.
+### Dual execution model
 
-The same scoring logic lives in `src/omnicursor/scoring.py` for tests and eval scripts under `eval/`.
+Both the runtime hook scripts and the importable node surface delegate to the
+**same** shared library modules (`file_edit`, `shell_guard`, `session_outcome`,
+`scoring`, …):
+
+- **Runtime:** Cursor executes the stdlib-only `.cursor/hooks/scripts/*.py`, which
+  insert `src/` (and `.cursor/hooks/lib/`) onto `sys.path` and `import omnicursor.*`
+  directly. They are thin entrypoints — **not** duplicated logic.
+- **In-process surface:** each node's `node.py` → `handler.py` → `handlers/*.py` →
+  typed `models/*.py` re-runs the same delegation for tests/CI/scripting.
+
+The genuinely **duplicated, self-contained** copies of the logic live only in the
+**legacy `.cursor/hooks/on_*.py`** (see §4) — and those have drifted from the
+active scripts, with no automated parity guard.
+
+> Known field-mapping gaps in the in-process node surface (document, don't mistake
+> for bugs): the shell-guard soft-warn message and the file-edit `tsc` findings
+> are computed by the shared libs but **dropped** by the node output models; the
+> session-outcome contract's `durable_outbox`/`injected_pattern_ids` obligation
+> is fulfilled by the drainer/hook, not the node's Python output.
 
 ---
 
-## Local state (`~/.omnicursor/`)
+## 8. Event pipeline & sidecar
+
+> **Two different files are easy to conflate:**
+> `~/.omnicursor/events.jsonl` is the hooks' raw **audit log**. The drainer
+> **never** reads it. The drainer reads `~/.omnicursor/outbox.jsonl`, the
+> **durable session-outcome feed** written by `session_outbox.write_session_outcome`
+> from the `stop` hook.
+
+Real flow:
+
+```
+events.jsonl ──(stop.py aggregates a session)──▶ outbox.jsonl
+                                                     │
+                              ┌──────────────────────┴──────────────────────┐
+                              ▼ (drainer/sidecar, opt-in)                    │
+            transform: rows with schema_version                             │
+            "omnicursor.session_outcome.v1" → events ──▶ Publisher          │
+                              │                                              │
+              ┌───────────────┴───────────────┐                            │
+              ▼                                ▼                            │
+        KafkaPublisher                 OmniDashFixturePublisher             │
+        (Redpanda/Kafka, Option C)     (local JSON fixtures, demo)          │
+```
+
+- **Sidecar** (`src/omnicursor/sidecar/daemon.py`) runs three things: a Unix-socket
+  listener (`emit.sock`), the drain loop, and an optional loopback `/status` server.
+- **Delivery is at-least-once**, fan-out is not atomic — consumers must be idempotent.
+- `confluent-kafka` is **not a declared dependency**; Kafka mode requires
+  installing it manually (otherwise the drainer retries forever).
+
+> ⚠️ The **live socket → outbox bridge is effectively dead for publishing**:
+> socket-appended `{event_type, payload}` rows are written to the outbox but
+> `transform` returns `[]` for anything that isn't a `session_outcome.v1` row, so
+> they are skipped. Only the schema-versioned session-outcome rows ever publish.
+
+`config/event_registry/omnicursor.yaml` declares the event→topic map but is
+consumed by an **external** omnimarket daemon, not by this repo;
+`KafkaPublisher._TOPIC_MAP` hardcodes a mirror that can (and does) drift.
+
+---
+
+## 9. OmniMarket bridge & MCP
+
+OmniCursor reaches OmniNode by invoking **omnimarket** nodes — not by calling
+omniintelligence service APIs directly.
+
+- **Bridge** (`omnimarket_bridge.py`): runs `python -m omnimarket.nodes.<node>`
+  as a **subprocess**, injecting `{OMNIMARKET_ROOT}/src` into `PYTHONPATH`.
+  It **never raises** — failures are encoded in a `BridgeResult`.
+- **Needs a local omnimarket checkout.** Set `OMNIMARKET_ROOT` to point at it; the
+  bridge also falls back to an `omnimarket-main/` directory in the repo root if one
+  exists (dev convenience). On a clean clone neither is present, so bridge/MCP calls
+  error until `OMNIMARKET_ROOT` is set. (The in-process handler fallback mentioned
+  in older docs is **not implemented** — subprocess only.)
+- **MCP server** (`python -m omnicursor.mcp`, stdio, name `omnicursor-omnimarket`)
+  exposes three tools: `run_local_review`, `run_ticket_pipeline`, `run_ci_watch`.
+  Needs the optional `mcp` extra (`pip install -e ".[mcp]"`); `run_ci_watch`
+  needs the `gh` CLI.
+
+---
+
+## 10. Intelligence options (A / B / C)
+
+All networked tiers are **opt-in**; the plugin works fully offline.
+
+| Option | What | Gate |
+|--------|------|------|
+| **A** | Local pattern learning at `~/.omnicursor/learned_patterns.json` | Always on, offline |
+| **B** | HTTP pull from omniintelligence (`sync/pattern_sync.py`) | `OMNICURSOR_PATTERN_SYNC_HTTP` (**default off**), `OMNIINTELLIGENCE_URL` |
+| **C** | Session events → outbox → sidecar → Kafka | `scripts/run_sidecar.sh`, Redpanda, `confluent-kafka` |
+
+> The prompt hook *also* fetches patterns over HTTP at prompt-time using a
+> **different** variable, `INTELLIGENCE_SERVICE_URL` (with a local-cache
+> fallback). `INTELLIGENCE_SERVICE_URL` (per-prompt fetch) and
+> `OMNIINTELLIGENCE_URL` (session-end sync) are read by different code paths —
+> don't confuse them.
+
+---
+
+## 11. Local state (`~/.omnicursor/`)
 
 | Path | Purpose |
 |------|---------|
-| `learned_patterns.json` | Option A — pattern learning cache |
-| `events.jsonl` | Structured hook event log |
-| `sessions/<conversation_id>.json` | Session facts (routing, ticket IDs, CI status) |
-| `sessions/.../dispatch_claim` | Shell dispatch guard (see rule `00`) |
-| `last-recap.md` | Previous session recap (injected at next session start) |
-| `outbox.jsonl` | Option C — durable session outcomes for drainer |
-| `emit.sock` | Unix socket for live hook → sidecar events |
-
-**Privacy:** `learned_patterns.json` may contain up to 60 characters of prompt text in descriptions. Data stays local unless Option B HTTP sync or Option C Kafka publishing is enabled.
-
----
-
-## Intelligence options (A / B / C)
-
-OmniCursor layers optional intelligence on top of local hook behavior.
-
-| Option | What | Requires |
-|--------|------|----------|
-| **A — Local patterns** | Learn/write patterns at `~/.omnicursor/learned_patterns.json` | Nothing — works offline |
-| **B — HTTP sync** | Pull merged patterns from omniintelligence on each prompt | `OMNICURSOR_PATTERN_SYNC_HTTP=1`, `INTELLIGENCE_SERVICE_URL`, compose stack |
-| **C — Event bus** | Session events → outbox → sidecar → Kafka/OmniDash | `scripts/run_sidecar.sh`, Redpanda, `confluent-kafka` |
-
-```
-Option A (default)     Hook → learned_patterns.json
-Option B               Hook → HTTP GET /api/v1/patterns → merge with local cache
-Option C               Hook → emit.sock / outbox.jsonl → sidecar → Kafka topics
-```
-
-Sidecar entry point: `python -m omnicursor.sidecar.daemon [--publisher kafka|omnidash|noop]`.
-
-Environment template: [`.env.omninode.example`](../.env.omninode.example).
+| `events.jsonl` | Raw hook event audit log |
+| `sessions/<conversation_id>.json` | Per-session facts (ticket ids, `ci_passing`, routing) |
+| `sessions/current.json` | Most recent session pointer (fake SessionStart) |
+| `learned_patterns.json` | Option A pattern store |
+| `outbox.jsonl` | Option C durable session-outcome feed (`schema_version: omnicursor.session_outcome.v1`) |
+| `*.cursor` | Drainer byte-offset cursors (`outbox.cursor`, `sidecar.cursor`, `omnidash.cursor`) |
+| `emit.sock` | Sidecar live-event Unix socket |
+| `last-recap.md` | Pending recap prepended to the next prompt |
 
 ---
 
-## Node contracts
+## 12. Packaging
 
-Five Cursor-native node contracts under `src/omnicursor/nodes/` describe the ONEX shape of each hook lifecycle event. They are **documentation and test anchors** — the live implementation is always the stdlib hook script referenced in each contract's `cursor_native` block.
-
-| Contract | Hook event |
-|----------|------------|
-| `node_cursor_prompt_orchestrator` | `beforeSubmitPrompt` |
-| `node_cursor_shell_guard_effect` | `beforeShellExecution` |
-| `node_cursor_file_edit_effect` | `afterFileEdit` |
-| `node_cursor_session_outcome_orchestrator` | `stop` |
-| `node_cursor_pattern_injection_compute` | pattern injection (subset of prompt hook) |
-
-Each contract declares input/output schemas, `cursor_native.implementation`, and a local `events.jsonl` bus — not Kafka topic strings in app code.
+- **Python package:** setuptools `src/` layout, runtime deps `pydantic` + `pyyaml`,
+  extras `[dev]` (pytest) and `[mcp]`. Version `0.1.0`. Only
+  `nodes/*/contract.yaml` is bundled as package data — the `.cursor/` surfaces
+  ship via the plugin symlink, **not** via pip.
+- **Cursor plugin:** `scripts/install-plugin.sh` symlinks the repo into
+  `~/.cursor/plugins/local/omnicursor`. Two manifests exist
+  (`.cursor-plugin/plugin.json` is the official one; root `cursor-plugin.json` is
+  a companion) and their versions must be kept in sync (`tests/test_plugin_manifest.py`).
 
 ---
 
-## OmniCursor vs OmniMarket ownership
+## Source-of-truth hierarchy
 
-```
-OmniCursor                          OmniMarket
-──────────                          ──────────
-Collect user intent                 Workflow + business logic
-Route prompts to agents             Node handlers + contracts
-Guard shell / lint edits            Tool-provider semantics
-Invoke MCP / subprocess bridge  →   Execute nodes (local-review, etc.)
-Render results to user              Emit/consume Kafka events
-```
+When documents disagree:
 
-OmniCursor **must not** duplicate OmniMarket node logic in rules or hooks. Bucket 3 skills invoke nodes via:
-
-```bash
-PYTHONPATH="${OMNIMARKET_ROOT}/src" python -m omnimarket.nodes.<node_name>
-```
-
-Set `OMNIMARKET_ROOT` to a local omnimarket checkout (see `.env.omninode.example`).
+1. **Actual current codebase behavior**
+2. This file and the other docs under `docs/` — repo conventions & architecture
+3. `omnicursor-team-guidance.md` — demo-focused guidance (local; gitignored)
+4. `omniclaude-main/` — read-only reference library (gitignored; absent from a clean clone)
 
 ---
 
-## Plugin packaging
-
-OmniCursor installs as a **user-level Cursor plugin** via symlink:
-
-```
-~/.cursor/plugins/local/omnicursor → /path/to/OmniCursor
-```
-
-Manifest: [`.cursor-plugin/plugin.json`](../.cursor-plugin/plugin.json) declares `rules`, `agents`, `skills`, and `hooks` paths. One install applies to **every workspace** — no per-repo setup.
-
----
-
-## Testing and CI
-
-```
-pytest tests/          — routing, hooks, skills, compliance, sidecar, drainer
-ruff check             — src/, tests/, .cursor/hooks/
-.githooks/pre-commit   — same checks locally before commit
-GitHub Actions         — PRs to main
-```
-
-Hooks are tested by importing hook modules with mocked I/O; the Python library is tested independently.
-
----
-
-## Roadmap: shared emit daemon
-
-OmniCursor currently ships a **bespoke sidecar + drainer** for Option C. The target architecture (see repo-root `OMNICURSOR_DISPATCHER_PLAN.md`) is to **reuse omnimarket's shared `node_emit_daemon`** — the same stdlib `EmitClient` OmniClaude uses — and delete the duplicate emission stack. Hooks already include a vendored `emit_client.py` compatible with that wire protocol.
-
-Until that migration lands, treat Option C as **local/demo infrastructure**; production bus emission will converge on the shared daemon.
-
----
-
-## Related docs
-
-| Doc | Topic |
-|-----|-------|
-| [QUICKSTART.md](./QUICKSTART.md) | Install, hooks, skills, Linear MCP |
-| [HANDOFF.md](./HANDOFF.md) | Developer onboarding path |
-| [README.md](./README.md) | Documentation map |
-| [`.cursor/rules/00-omninode-concepts.mdc`](../.cursor/rules/00-omninode-concepts.mdc) | Vocabulary and bucket table (always active) |
+**See also:** [`CURRENT_STATE.md`](./CURRENT_STATE.md) ·
+[`QUICKSTART.md`](./QUICKSTART.md) · [`HANDOFF.md`](./HANDOFF.md) ·
+[`INDEX.md`](./INDEX.md)
