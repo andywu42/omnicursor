@@ -48,7 +48,7 @@ Generate a structured YAML ticket contract template that can be handed to a team
 
    If multiple teams exist and none is obvious, ask the user which team to use. Always list teams (or confirm a single team) before creating the issue. Report the created ticket URL to the user.
 
-   **Execute-plan / Omnimarket:** when the user later runs `onex-execute-plan` or the MCP tool `run_ticket_pipeline`, the Linear issue key from the created ticket is passed as **`ticket_id`** (MCP/JSON name). Use the identifier Linear returns (e.g. `OMN-47`), not a made-up prefix.
+   **Execute-plan / Omnimarket:** when the user later runs `onex-execute-plan` or the MCP tool `run_ticket_pipeline`, the Linear issue key from the created ticket is passed as **`ticket_id`** (MCP/JSON name). Use the identifier Linear returns for your team (e.g. `TEAM-47`), not a made-up prefix.
 
 ## Expected Output Format
 

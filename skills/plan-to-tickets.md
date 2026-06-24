@@ -44,7 +44,7 @@ Call `tracker.create_issue` with:
 - `teamId`: from step 2
 - `description`: first paragraph of the plan (Goal + Architecture lines)
 
-Record the epic's ticket ID (e.g., `OMN-100`).
+Record the epic's ticket ID (e.g., `TEAM-100`).
 
 ### 4. Create one ticket per task
 
@@ -62,15 +62,15 @@ If found, skip creation and use its ID.
 
 Output:
 ```
-Epic: OMN-100
-Task 1 → OMN-101
-Task 2 → OMN-102 (blocked by OMN-101)
-Task 3 → OMN-103 (blocked by OMN-101, OMN-102)
+Epic: TEAM-100
+Task 1 → TEAM-101
+Task 2 → TEAM-102 (blocked by TEAM-101)
+Task 3 → TEAM-103 (blocked by TEAM-101, TEAM-102)
 ```
 
 Return this mapping to the caller (execute_plan uses it for ordered implementation).
 
-Downstream, `onex-execute-plan` invokes the Omnimarket MCP tool `run_ticket_pipeline` with **`ticket_id`** set to each Linear identifier from this mapping (e.g. `"OMN-101"`).
+Downstream, `onex-execute-plan` invokes the Omnimarket MCP tool `run_ticket_pipeline` with **`ticket_id`** set to each Linear identifier from this mapping (e.g. `"TEAM-101"`).
 
 ## Dry Run
 

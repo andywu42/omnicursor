@@ -87,7 +87,7 @@ entry      -> omniintelligence.review_pairing.cli_review (CLI)
 Node invocation (working directory must be the `omniintelligence` repo root):
 
 ```bash
-uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation until OMN-8770 onex run migration
+uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation pending onex run migration
   --pr <N> --repo <owner/repo> --model codex --model deepseek-r1 2>/dev/null
 ```
 
@@ -283,20 +283,20 @@ Each pass within the loop executes:
 
 **PR mode (default models):**
 ```bash
-uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation until OMN-8770 onex run migration
+uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation pending onex run migration
   --pr <N> --repo <owner/repo> --model codex --model deepseek-r1 2>/dev/null
 ```
 
 **File mode (default models):**
 ```bash
-uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation until OMN-8770 onex run migration
+uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation pending onex run migration
   --file <path> --model codex --model deepseek-r1 2>/dev/null
 ```
 
 When `--models` is provided, expand into repeated `--model` args dynamically:
 ```bash
 # Example: --models deepseek-r1,qwen3-14b,codex
-uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation until OMN-8770 onex run migration
+uv run python -m omniintelligence.review_pairing.cli_review \  # local-path-ok: omniintelligence direct CLI invocation pending onex run migration
   --pr <N> --repo <owner/repo> --model deepseek-r1 --model qwen3-14b --model codex 2>/dev/null
 ```
 
@@ -482,7 +482,7 @@ The stdout-only JSON contract is what makes multi-model review viable:
 - **stdout**: compact aggregated JSON (~500 tokens) — Claude Code sees this
 - **stderr**: all model verbose output — silenced by `2>/dev/null`, never enters context
 - **event bus**: full per-model raw findings — captured here for observability via
-  `hostile.reviewer.completed` / `hostile.reviewer.failed` events (OMN-6188)
+  `hostile.reviewer.completed` / `hostile.reviewer.failed` events
 
 **Do not remove `2>/dev/null` from prompt.md.** If you need to debug model output,
 redirect stderr to a temp file instead: `2>/tmp/hostile-reviewer-debug.log`.
