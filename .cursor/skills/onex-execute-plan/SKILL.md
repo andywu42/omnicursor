@@ -22,10 +22,10 @@ for each ticket via the Omnimarket bridge.
 Or **single ticket mode** — skip Steps 1–2 and drive the Omnimarket pipeline for one Linear issue key you already have:
 
 ```
-/execute-plan OMN-47
+/execute-plan TEAM-47
 ```
 
-(Pass whatever identifier Linear shows for your workspace, not a generic placeholder.)
+(Pass whatever identifier Linear shows for your workspace — the prefix is set by your Linear team slug.)
 
 ## Pipeline
 
@@ -54,16 +54,16 @@ For each ticket in task order (respecting `blockedBy` dependencies), **or once**
 
 **Bridge contract**
 
-- MCP tool **`run_ticket_pipeline`** (FastMCP server **`omnicursor-omnimarket`** in this repo; Cursor UI may label the project MCP differently) expects the Linear identifier as **`ticket_id`** — same name as the JSON/MCP argument, e.g. `run_ticket_pipeline(ticket_id="OMN-47")`.
+- MCP tool **`run_ticket_pipeline`** (FastMCP server **`omnicursor-omnimarket`** in this repo; Cursor UI may label the project MCP differently) expects the Linear identifier as **`ticket_id`** — same name as the JSON/MCP argument, e.g. `run_ticket_pipeline(ticket_id="TEAM-47")`.
 - The bridge subprocess runs `python -m omnimarket.nodes.node_ticket_pipeline` with optional `--skip-test-iterate` / `--dry-run` **first**, then the issue key **as the final positional argument**. Omnimarket’s CLI does **not** take `--ticket-id`; if you see `unrecognized arguments: --ticket-id`, reinstall OmniCursor in the venv the MCP server uses (`pip install -e ".[dev]"` from this repo) so the bridge matches omnimarket.
-- Use the **real** prefix for your Linear team (examples below use `OMN-` only as illustration).
+- Use the **real** prefix for your Linear team (examples below use `TEAM-` as a generic placeholder).
 
 **3a. Via Omnimarket bridge (preferred)**
 
 If the Omnimarket MCP server is available, call:
 
 ```
-run_ticket_pipeline(ticket_id="OMN-47")
+run_ticket_pipeline(ticket_id="TEAM-47")
 ```
 
 This drives the full pipeline unattended:
@@ -99,9 +99,9 @@ After all tickets are processed:
 
 ```
 execute-plan summary: docs/plans/my-plan.md
-  Done:    N tickets (OMN-101 → PR #12, OMN-102 → PR #13)
-  Blocked: N tickets (OMN-103 — pipeline failed: test_auth.py timeout)
-  Skipped: N tickets (OMN-104 — blocked by OMN-103)
+  Done:    N tickets (TEAM-101 → PR #12, TEAM-102 → PR #13)
+  Blocked: N tickets (TEAM-103 — pipeline failed: test_auth.py timeout)
+  Skipped: N tickets (TEAM-104 — blocked by TEAM-103)
 
 Next steps:
   - Review blocked tickets and fix root cause manually
