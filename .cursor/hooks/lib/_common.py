@@ -135,13 +135,42 @@ def write_stdout(data: Dict[str, Any]) -> None:
 
 
 def write_context(content: str) -> None:
-    """Write a prompt enrichment response to stdout.
+    """DEPRECATED — Cursor's ``beforeSubmitPrompt`` does NOT consume ``systemMessage``.
 
-    Wraps *content* in Cursor's ``{"systemMessage": ...}`` envelope.
-    The string should be plain Markdown — Cursor injects it as a system
-    message before the model responds.
+    Cursor's real ``beforeSubmitPrompt`` output schema is ``{continue, user_message}``
+    only; a ``{"systemMessage": ...}`` envelope is silently ignored, so this was a
+    structural no-op. Live context injection flows through
+    ``sessionStart.additional_context`` (initial system context) and
+    ``postToolUse.additional_context`` (mid-session refresh) — use
+    :func:`write_additional_context` from those hooks instead. Retained only so any
+    stale caller keeps exiting cleanly.
     """
     print(json.dumps({"systemMessage": content}))
+
+
+def write_additional_context(
+    content: str,
+    *,
+    env: Optional[Dict[str, str]] = None,
+) -> None:
+    """Write an ``additional_context`` injection response to stdout.
+
+    This is Cursor's real context-injection envelope, consumed by the
+    ``sessionStart`` and ``postToolUse`` hooks:
+
+        {"additional_context": "<markdown>", "env": {"KEY": "VALUE"}}
+
+    *content* is injected into the conversation's system context. *env*, when
+    provided (sessionStart only), is exported to all subsequent hook executions
+    within the session. Empty *content* with no *env* emits ``{}`` (a valid no-op
+    response) so the hook never blocks.
+    """
+    response: Dict[str, Any] = {}
+    if content:
+        response["additional_context"] = content
+    if env:
+        response["env"] = env
+    print(json.dumps(response))
 
 
 # ---------------------------------------------------------------------------

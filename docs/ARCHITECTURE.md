@@ -47,15 +47,16 @@ There are **four behavior surfaces** plus **one support library**:
 | **Rules** | `.cursor/rules/*.mdc` (14 files) | Instructions injected into the model's context |
 | **Skills** | `skills/*.md` (17) + `.cursor/skills/onex-*/SKILL.md` (17) | Methodology playbooks the model reads on demand |
 | **Agents** | `.cursor/agents/*.json` (17) | Routing personas scored against the prompt |
-| **Hooks** | `.cursor/hooks/scripts/*.py` (4) | Deterministic, stdlib-only lifecycle scripts |
+| **Hooks** | `.cursor/hooks/scripts/*.py` (7) | Deterministic, stdlib-only lifecycle scripts |
 | **Library** | `src/omnicursor/` | Routing, scoring, skills, compliance, contracts, bridge — for **pytest/CI/scripting only** |
 
 > **Key boundary:** the hooks are **stdlib-only** and must run without a
-> virtualenv. The active scripts reach the library logic by inserting `src/` (and
-> `.cursor/hooks/lib/`) onto `sys.path` and importing `omnicursor.*` **directly** —
-> the library is the single source of truth, the scripts are thin entrypoints.
-> Self-contained *duplicated copies* of the logic exist only in the unwired legacy
-> `.cursor/hooks/on_*.py`. See [§4 Hooks](#4-hooks) and [§7 Node contracts](#7-node-contracts-onex-shaped).
+> virtualenv. The active scripts reach shared logic by inserting `.cursor/hooks/lib/`
+> (and `src/` where needed) onto `sys.path` and importing the lib modules
+> (`_common`, `context_injection`, …) and `omnicursor.*` **directly** — those are the
+> single source of truth, the scripts are thin entrypoints. The previous duplicated
+> `.cursor/hooks/on_*.py` set was deleted in the W4 alignment. See [§4 Hooks](#4-hooks)
+> and [§7 Node contracts](#7-node-contracts-onex-shaped).
 
 ---
 
@@ -134,33 +135,37 @@ directory listing, then emits the YAML ticket-contract template.
 
 ## 4. Hooks
 
-Four Cursor lifecycle events are wired in `.cursor/hooks.json` to four
+Seven Cursor lifecycle events are wired in `.cursor/hooks.json` to
 **stdlib-only** scripts:
 
 | Event | Active script | Can block? | Role |
 |-------|---------------|------------|------|
-| `beforeSubmitPrompt` | `scripts/user-prompt-submit.py` | No | Classifies the prompt → best agent; selects/injects learned patterns; emits a `systemMessage` |
-| `beforeShellExecution` | `scripts/shell-guard.py` | **Yes** | Two-tier guard: **9 HARD_BLOCK** (deny) + **12 SOFT_WARN** (allow + warning); optional DoD/dispatch gates |
-| `afterFileEdit` | `scripts/post-edit.py` | No | Diagnostic `ruff check` (`.py`) and `tsc --noEmit` (`.ts`) — **never `--fix`**, never modifies files |
-| `stop` | `scripts/stop.py` | No | Aggregates session events → classifies outcome (4-gate); writes recap, patterns, and the durable outbox |
+| `sessionStart` | `scripts/session-start.py` | No | Session init + daemon-ensure + emit `session-started`; **injects** session-level context (baseline patterns + delegation rule + prior session) via `additional_context` |
+| `beforeSubmitPrompt` | `scripts/user-prompt-submit.py` | No | Classifies the prompt → best agent; emits classification + relevant patterns for backend learning. **Block-only** (`{continue, user_message}`) — cannot inject |
+| `beforeShellExecution` | `scripts/shell-guard.py` | **Yes** | Two-tier guard: **9 HARD_BLOCK** (deny) + **12 SOFT_WARN** (allow + warning); optional DoD/dispatch gates. Output `{permission: allow\|deny\|ask, user_message, agent_message}` |
+| `afterFileEdit` | `scripts/post-edit.py` | No | Diagnostic `ruff check` (`.py`) and `tsc --noEmit` (`.ts`) — **never `--fix`**, never modifies files; emits `tool-executed` |
+| `postToolUse` | `scripts/post-tool-use.py` | No | **Refreshes** injected context via `additional_context` (patterns for the tool's inferred domain); emits `tool-executed` |
+| `stop` | `scripts/stop.py` | No | Aggregates session events → classifies outcome (4-gate); writes recap, patterns, and the durable outbox (loop-end) |
+| `sessionEnd` | `scripts/session-end.py` | No | Emit `session-ended` (true conversation close, complements `stop`); fire-and-forget |
 
-- **Only `shell-guard.py` can deny** (via `{"permission": "deny"}`). The other
-  three are informational — Cursor ignores their stdout. They all append to
-  `~/.omnicursor/events.jsonl`.
+- **Only `shell-guard.py` can deny** (via `{"permission": "deny"}`).
+- **Injection** happens only at `sessionStart.additional_context` (initial) and
+  `postToolUse.additional_context` (refresh) — Cursor's `beforeSubmitPrompt` output is
+  block-only (`{continue, user_message}`) and a `systemMessage` there is silently ignored.
+  Shared context-assembly lives in `.cursor/hooks/lib/context_injection.py`.
+- The observational hooks append to `~/.omnicursor/events.jsonl` and emit best-effort
+  events via the shared daemon.
 - All hooks **fail open**: any exception degrades to allow / no-op so a hook can
   never crash Cursor.
 
-### Active scripts vs. legacy `on_*.py`
+### Hook script layout
 
-> ⚠️ **There are two parallel hook implementations.** The **active** ones under
-> `.cursor/hooks/scripts/*.py` are the only ones wired in `hooks.json`; they
-> delegate to `src/omnicursor/` (via `lib/*.py` shims). The top-level
-> `.cursor/hooks/on_prompt.py` / `on_shell.py` / `on_edit.py` / `on_stop.py` are
-> **legacy, self-contained, and NOT wired** — they can never run in Cursor and
-> survive only because `tests/test_hooks_*.py` still import them. Their behavior
-> has drifted from the active scripts (e.g. `on_edit.py` runs ruff only, no
-> `tsc`; `on_shell.py` lacks the DoD/dispatch tiers). Treat `scripts/*.py` as
-> authoritative.
+All hooks live under `.cursor/hooks/scripts/*.py` (the only set wired in
+`hooks.json`), delegating to shared logic in `.cursor/hooks/lib/*.py`
+(`_common`, `context_injection`, `emit_client`, `pattern_loader`,
+`prompt_pattern_selection`, `pattern_sync`) and, where needed, to `src/omnicursor/`.
+The previous parallel top-level `on_*.py` set was deleted in the W4 hook alignment —
+`scripts/*.py` is the single source.
 
 ### Session outcome classification (`stop`)
 
@@ -209,15 +214,14 @@ flat "max of all four":
 OmniCursor closes a feedback loop between routing and session outcomes:
 
 ```
-prompt hook                            stop hook
-───────────                            ─────────
-select relevance-ranked patterns       derive session outcome (4-gate)
-from ~/.omnicursor/learned_patterns    │
-.json, inject as systemMessage,        ├─ on SUCCESS: reinforce the injected
-emit prompt_classified event   ───────▶│   pattern_ids (weight boost, utilization)
-carrying injected_pattern_ids          │   + mine new patterns from high-confidence
-                                       │   prompt_classified events
-                                       └─ decay stale / evict overflow patterns
+sessionStart / postToolUse             prompt hook               stop hook
+──────────────────────────             ───────────               ─────────
+inject relevance-ranked patterns       classify prompt →         derive outcome (4-gate)
+from ~/.omnicursor/learned_patterns    emit prompt_classified    │
+.json via additional_context           carrying relevant  ──────▶├─ on SUCCESS: reinforce the
+(sessionStart = baseline,              pattern_ids               │   pattern_ids (weight, utilization)
+ postToolUse = refresh)                                          │   + mine new patterns
+                                                                 └─ decay stale / evict overflow
 ```
 
 - **Store:** `~/.omnicursor/learned_patterns.json` (record fields: `pattern_id`,
@@ -241,16 +245,17 @@ OmniClaude's per-node contract format, under `src/omnicursor/nodes/<node>/`.
 `node_contracts.py` discovers, parses (Pydantic, `extra="allow"`), caches, and
 best-effort validates them against the real `.cursor/hooks.json`.
 
-There are **5 contracts for 4 hook events** — `beforeSubmitPrompt` is described
-by **two** nodes:
+There are **7 contracts across 7 hook events**:
 
 | Node | `node_type` | Hook event | Blocking |
 |------|-------------|------------|----------|
+| `node_cursor_pattern_injection_compute` | COMPUTE | `sessionStart` | No |
 | `node_cursor_prompt_orchestrator` | ORCHESTRATOR_GENERIC | `beforeSubmitPrompt` | No |
-| `node_cursor_pattern_injection_compute` | COMPUTE | `beforeSubmitPrompt` | No |
 | `node_cursor_shell_guard_effect` | EFFECT_GUARD | `beforeShellExecution` | **Yes** |
 | `node_cursor_file_edit_effect` | EFFECT_POST_EDIT | `afterFileEdit` | No |
+| `node_cursor_tool_use_compute` | COMPUTE | `postToolUse` | No |
 | `node_cursor_session_outcome_orchestrator` | ORCHESTRATOR_GENERIC | `stop` | No |
+| `node_cursor_session_end_effect` | EFFECT | `sessionEnd` | No |
 
 ### Dual execution model
 
@@ -353,7 +358,7 @@ All networked tiers are **opt-in**; the plugin works fully offline.
 |------|---------|
 | `events.jsonl` | Raw hook event audit log |
 | `sessions/<conversation_id>.json` | Per-session facts (ticket ids, `ci_passing`, routing) |
-| `sessions/current.json` | Most recent session pointer (fake SessionStart) |
+| `sessions/current.json` | Most recent session pointer (written by the `sessionStart` hook) |
 | `learned_patterns.json` | Option A pattern store |
 | `outbox.jsonl` | Durable session-outcome record (`schema_version: omnicursor.session_outcome.v1`) |
 | `emit.sock` | Unix socket for hook event emission, owned by the shared platform emit daemon (§8) |

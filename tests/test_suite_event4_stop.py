@@ -33,9 +33,12 @@ _mod = _load("stop", _SCRIPTS / "stop.py")
 
 
 def _stub_stop_emit_and_pattern_sync(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Phase 1: stop.py emits on socket + syncs patterns — stub for isolated tests."""
+    """Stub stop.py's emit for isolated tests.
+
+    Pattern sync moved to the sessionStart hook (W4), so stop.py no longer
+    imports ``sync_learned_patterns`` — only ``send_event`` needs stubbing here.
+    """
     monkeypatch.setattr(_mod, "send_event", lambda *a, **k: False)
-    monkeypatch.setattr(_mod, "sync_learned_patterns", lambda *a, **k: False)
 
 
 # ---------------------------------------------------------------------------

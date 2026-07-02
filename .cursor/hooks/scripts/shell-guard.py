@@ -27,6 +27,7 @@ from _common import (  # noqa: E402
     read_stdin,
     write_stdout,
 )
+from emit_client import send_event  # noqa: E402
 from omnicursor.shell_guard import guard_command as _guard_command_impl  # noqa: E402
 
 _DOD_CONFIG_PATH: Path = _hooks / "config" / "dod_enforcement.json"
@@ -54,12 +55,29 @@ def main() -> None:
 
         response = guard_command(command, conversation_id=conversation_id, sessions_root=SESSIONS_DIR)
 
-        if response.get("permission") == "deny":
+        # Translate the guard result to Cursor's documented beforeShellExecution
+        # output: {permission: allow|deny|ask, user_message, agent_message}. The
+        # library returns camelCase (userMessage/agentMessage) which Cursor ignores,
+        # so remap to snake_case at this boundary.
+        permission = response.get("permission", "allow")
+        user_message = response.get("user_message") or response.get("userMessage")
+        agent_message = response.get("agent_message") or response.get("agentMessage")
+
+        cursor_response: dict[str, Any] = {"permission": permission}
+        if user_message:
+            cursor_response["user_message"] = user_message
+        if agent_message:
+            cursor_response["agent_message"] = agent_message
+
+        if permission == "deny":
             decision = "deny"
-            reason = response.get("userMessage", "")
-        elif "agentMessage" in response:
+            reason = user_message or ""
+        elif permission == "ask":
+            decision = "ask"
+            reason = user_message or agent_message or ""
+        elif agent_message:
             decision = "warn"
-            reason = response.get("agentMessage", "")
+            reason = agent_message
         else:
             decision = "allow"
             reason = ""
@@ -91,7 +109,17 @@ def main() -> None:
             payload["command_truncated"] = True
         log_event(payload)
 
-        write_stdout(response)
+        send_event(
+            "onex.evt.omnicursor.tool-executed.v1",
+            {
+                "conversation_id": conversation_id,
+                "correlation_id": correlation_id,
+                "tool_name": "shell",
+                "decision": decision,
+            },
+        )
+
+        write_stdout(cursor_response)
     except Exception:
         write_stdout({"permission": "allow"})
 

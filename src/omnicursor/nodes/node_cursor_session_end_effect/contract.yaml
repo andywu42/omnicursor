@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2025 OmniNode.ai Inc.
+# SPDX-License-Identifier: MIT
+# True conversation-close signal via Cursor's sessionEnd hook.
+
+name: node_cursor_session_end_effect
+contract_name: node_cursor_session_end_effect
+node_name: node_cursor_session_end_effect
+
+contract_version:
+  major: 1
+  minor: 0
+  patch: 0
+
+node_version:
+  major: 1
+  minor: 0
+  patch: 0
+
+node_type: EFFECT
+
+description: >
+  Emits the true conversation-close event (onex.evt.omnicursor.session-ended.v1)
+  when Cursor closes a composer conversation. Complements the stop hook
+  (node_cursor_session_outcome_orchestrator), which marks agent-loop end. Cursor
+  treats sessionEnd as fire-and-forget, so this hook only emits and logs — its
+  stdout is not consumed.
+
+cursor_native:
+  hook_event: sessionEnd
+  hooks_json_command: "python3 .cursor/hooks/scripts/session-end.py"
+  implementation: .cursor/hooks/scripts/session-end.py
+  blocking: false
+
+execution:
+  backend: cursor_ide
+
+local_event_bus:
+  kind: append_only_jsonl
+  path: "~/.omnicursor/events.jsonl"
+
+capabilities:
+  - name: cursor.session_ended
+    description: Emit the true session-close event on conversation end
+    version: 1.0.0
+
+metadata:
+  license: MIT
+  tags:
+    - effect
+    - cursor
+    - session
+    - lifecycle

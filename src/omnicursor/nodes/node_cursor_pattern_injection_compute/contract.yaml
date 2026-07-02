@@ -19,21 +19,25 @@ node_version:
 node_type: COMPUTE
 
 description: >
-  Relevance-ranked read of learned patterns from local JSON for injection into
-  beforeSubmitPrompt context. No writes and no upstream intelligence calls —
-  persistence and optional HTTP refresh are separate tracks.
+  Session-level context injection via Cursor's sessionStart.additional_context
+  (the real injection channel — beforeSubmitPrompt is block-only and cannot
+  inject). Reads learned patterns (intelligence API first, local JSON fallback)
+  and returns baseline patterns + delegation rule + prior-session context at
+  session creation. The postToolUse hook (node_cursor_tool_use_compute) refreshes
+  this mid-session. No writes beyond the local event log.
 
 cursor_native:
-  hook_event: beforeSubmitPrompt
-  hooks_json_command: "python3 .cursor/hooks/scripts/user-prompt-submit.py"
-  implementation: .cursor/hooks/scripts/user-prompt-submit.py
+  hook_event: sessionStart
+  hooks_json_command: "python3 .cursor/hooks/scripts/session-start.py"
+  implementation: .cursor/hooks/scripts/session-start.py
   blocking: false
 
 execution:
   backend: cursor_ide
   notes: >
-    Canonical scoring in .cursor/hooks/lib/prompt_pattern_selection.py;
-    user-prompt-submit.py and omnicursor.prompt_pattern_read both use it.
+    Context assembly in .cursor/hooks/lib/context_injection.py (shared by
+    session-start.py and post-tool-use.py); pattern scoring in
+    .cursor/hooks/lib/prompt_pattern_selection.py.
 
 local_event_bus:
   kind: append_only_jsonl

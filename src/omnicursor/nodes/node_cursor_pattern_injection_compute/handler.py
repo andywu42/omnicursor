@@ -1,10 +1,13 @@
 # SPDX-FileCopyrightText: 2025 OmniNode.ai Inc.
 # SPDX-License-Identifier: MIT
-"""Read-side pattern selection — companion to ``beforeSubmitPrompt`` hook.
+"""Read-side pattern selection — companion to the ``sessionStart`` hook.
 
-Canonical logic: ``.cursor/hooks/lib/prompt_pattern_selection.py`` (stdlib).
-``omnicursor.prompt_pattern_read`` re-exports that module for this handler and
-for tests. The hook imports the same file directly — see
+Context injection is session-level via ``sessionStart.additional_context`` (and
+refreshed by ``postToolUse``); Cursor's ``beforeSubmitPrompt`` is block-only and
+cannot inject. Canonical selection logic:
+``.cursor/hooks/lib/prompt_pattern_selection.py`` (stdlib); context assembly:
+``.cursor/hooks/lib/context_injection.py``. ``omnicursor.prompt_pattern_read``
+re-exports the selection module for this handler and for tests — see
 ``docs/dev/OMNICLAUDE_TO_CURSOR_PORT.md``.
 """
 
@@ -20,9 +23,9 @@ CONTRACT_NAME = "node_cursor_pattern_injection_compute"
 
 def hook_binding() -> dict[str, str | bool]:
     return {
-        "hook_event": "beforeSubmitPrompt",
-        "hooks_json_command": "python3 .cursor/hooks/scripts/user-prompt-submit.py",
-        "implementation": ".cursor/hooks/scripts/user-prompt-submit.py",
+        "hook_event": "sessionStart",
+        "hooks_json_command": "python3 .cursor/hooks/scripts/session-start.py",
+        "implementation": ".cursor/hooks/scripts/session-start.py",
         "blocking": False,
     }
 
