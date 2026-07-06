@@ -22,6 +22,7 @@ from _common import (  # noqa: E402
     read_stdin,
     write_stdout,
 )
+from emit_client import send_event  # noqa: E402
 from omnicursor.file_edit import detect_language, handle_edit, run_ruff_check, run_tsc_check  # noqa: E402, F401
 
 
@@ -29,6 +30,7 @@ def main() -> None:
     _start = time.monotonic()
     try:
         data = read_stdin()
+        conversation_id = data.get("conversation_id", "")
         session = read_session_context()
         correlation_id: str = session.get("latest_correlation_id", "")
 
@@ -40,6 +42,17 @@ def main() -> None:
             "correlation_id": correlation_id,
             "hook_duration_ms": hook_ms,
         })
+
+        send_event(
+            "onex.evt.omnicursor.tool-executed.v1",
+            {
+                "conversation_id": conversation_id,
+                "correlation_id": correlation_id,
+                "tool_name": "edit_file",
+                "file_path": result.get("file_path", ""),
+                "language": result.get("language", ""),
+            },
+        )
     except Exception:
         pass
     write_stdout({})

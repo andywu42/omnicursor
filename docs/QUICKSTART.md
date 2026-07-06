@@ -55,10 +55,13 @@ No per-repo setup. Hooks and rules load from the plugin install path for every w
 
 | Hook | When it fires | What it does |
 |------|--------------|--------------|
-| `beforeSubmitPrompt` | Every prompt | Routes to the best agent, injects learned patterns and persona via `systemMessage` |
+| `sessionStart` | New chat | Injects session context (baseline patterns + delegation rule + prior session) via `additional_context`; ensures the emit daemon |
+| `beforeSubmitPrompt` | Every prompt | Routes to the best agent and emits the classification for learning (block-only; does not inject) |
 | `beforeShellExecution` | Every shell command | Blocks dangerous commands (e.g. `rm -rf /`, `--no-verify`), warns on risky ones |
 | `afterFileEdit` | Every file save | Runs `ruff check` / `tsc` diagnostically on edited files |
-| `stop` | Session end | Classifies session outcome (success / failed / abandoned), writes recap for next session |
+| `postToolUse` | After a tool runs | Refreshes injected patterns via `additional_context` for the tool's inferred domain |
+| `stop` | Loop end | Classifies session outcome (success / failed / abandoned), writes recap for next session |
+| `sessionEnd` | Chat closed | Emits the true session-close event |
 
 Only **shell-guard** can block execution. All other hooks always exit 0.
 

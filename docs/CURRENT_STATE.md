@@ -12,9 +12,9 @@
 | Cursor rules (`.mdc`) | **14** | `.cursor/rules/*.mdc` |
 | File-backed skills | **17** (× 2 locations) | `skills/*.md` (excl. `README.md`), `.cursor/skills/onex-*/SKILL.md` |
 | Agent configs | **17** | `.cursor/agents/*.json` |
-| Active hooks | **4** | `.cursor/hooks.json` |
-| Node contracts | **5** (for 4 hook events) | `src/omnicursor/nodes/*/contract.yaml` |
-| Test functions | **671** across **28** test files | `tests/` |
+| Active hooks | **7** | `.cursor/hooks.json` |
+| Node contracts | **7** (one per hook event) | `src/omnicursor/nodes/*/contract.yaml` |
+| Test functions | **561** across **29** test files | `tests/`, `src/omnicursor/nodes/*/tests/` |
 | Compliance smoke-checks | **17** keys | `src/omnicursor/compliance.py` |
 
 ---
@@ -25,20 +25,26 @@ These need only the plugin symlink — no network, no Docker, no extra deps:
 
 - ✅ **Rules** load and apply (`00`–`03` always-on; `10`–`19` on keyword/`@mention`).
 - ✅ **Skills** are discoverable via the Cursor `/` picker and readable by the model.
-- ✅ **Agent routing** — the prompt hook scores prompts and injects an agent
-  persona + learned patterns (`beforeSubmitPrompt`).
+- ✅ **Context injection** — `sessionStart` injects session-level context
+  (baseline patterns + delegation rule + prior session) via `additional_context`;
+  `postToolUse` refreshes it. This is Cursor's real injection channel.
+- ✅ **Agent routing** — the `beforeSubmitPrompt` hook scores prompts and emits the
+  classification + relevant patterns for backend learning (block-only; no injection).
 - ✅ **Shell guard** — the one hook that can deny: 9 HARD_BLOCK (deny) + 12
-  SOFT_WARN (allow + warning).
+  SOFT_WARN (allow + warning). Output `{permission, user_message, agent_message}`.
 - ✅ **Post-edit diagnostics** — `ruff` / `tsc --noEmit` on edited files (read-only).
-- ✅ **Session outcome** — the `stop` hook classifies failed/success/abandoned/unknown.
+- ✅ **Session lifecycle** — `stop` classifies outcome (loop-end); `sessionEnd`
+  emits the true conversation-close event.
 - ✅ **Option A pattern learning** — local read/inject/reinforce at
   `~/.omnicursor/learned_patterns.json`.
 - ✅ **Python library + test suite** — `pip install -e ".[dev]" && pytest tests/`.
 
-> **Platform uncertainty:** whether Cursor actually *renders/consumes* the
-> `systemMessage` the prompt hook emits (agent persona, delegation nudge, recap)
-> is **not confirmed**. The hook always emits it; the shell-guard `deny` is the
-> only hook output Cursor is known to act on.
+> **Injection channel (resolved in W4):** Cursor's `beforeSubmitPrompt` output is
+> block-only (`{continue, user_message}`) and does **not** consume `systemMessage` —
+> the earlier per-prompt injection was a structural no-op. Injection now flows through
+> `sessionStart.additional_context` (initial) and `postToolUse.additional_context`
+> (refresh), per the live Cursor hooks docs. Whether a given Cursor version renders
+> injected context should still be confirmed with the H.5 probe.
 
 ---
 
@@ -80,12 +86,13 @@ These need only the plugin symlink — no network, no Docker, no extra deps:
 Honest list of things that surprise readers. None are blockers for the core
 plugin, but they shape any work in these areas.
 
-1. **Two hook implementations.** `.cursor/hooks/scripts/*.py` are the wired,
-   authoritative entrypoints. The top-level `.cursor/hooks/on_*.py` are
-   **legacy/test-only** (not in `hooks.json`) and have drifted. See ARCHITECTURE §4.
+1. **Single hook implementation.** `.cursor/hooks/scripts/*.py` (delegating to
+   `.cursor/hooks/lib/*.py`) are the only entrypoints; the legacy top-level
+   `on_*.py` set was deleted in W4. See ARCHITECTURE §4.
 2. **Skill dual-path asymmetry.** Runtime loads from `.cursor/skills/` only; CI
    scans `skills/`. They must be content-identical (UTF-8 text; enforced by a parity test).
-3. **5 contracts / 4 hooks.** `beforeSubmitPrompt` is described by two nodes.
+3. **7 contracts / 7 hooks.** One contract per hook event (sessionStart,
+   beforeSubmitPrompt, beforeShellExecution, afterFileEdit, postToolUse, stop, sessionEnd).
 4. **In-process node fields dropped.** Shell-guard soft-warn message and file-edit
    `tsc` findings are computed but not surfaced by the node output models.
 5. **Env var split.** `INTELLIGENCE_SERVICE_URL` (per-prompt fetch) vs

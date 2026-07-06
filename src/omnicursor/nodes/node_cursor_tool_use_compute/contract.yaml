@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2025 OmniNode.ai Inc.
+# SPDX-License-Identifier: MIT
+# Mid-session context refresh via Cursor's postToolUse.additional_context.
+
+name: node_cursor_tool_use_compute
+contract_name: node_cursor_tool_use_compute
+node_name: node_cursor_tool_use_compute
+
+contract_version:
+  major: 1
+  minor: 0
+  patch: 0
+
+node_version:
+  major: 1
+  minor: 0
+  patch: 0
+
+node_type: COMPUTE
+
+description: >
+  Refreshes injected context after a tool executes, via Cursor's
+  postToolUse.additional_context. Infers a domain from the tool's file path,
+  reads relevance-ranked learned patterns, and returns them so guidance stays
+  current across a long session (Cursor cannot inject per-prompt). Also emits a
+  tool-executed event for backend learning. Read-only.
+
+cursor_native:
+  hook_event: postToolUse
+  hooks_json_command: "python3 .cursor/hooks/scripts/post-tool-use.py"
+  implementation: .cursor/hooks/scripts/post-tool-use.py
+  blocking: false
+
+execution:
+  backend: cursor_ide
+  notes: >
+    Context assembly shared with sessionStart in
+    .cursor/hooks/lib/context_injection.py (build_refresh_context).
+
+local_event_bus:
+  kind: append_only_jsonl
+  path: "~/.omnicursor/events.jsonl"
+
+capabilities:
+  - name: cursor.pattern_injection_refresh
+    description: Refresh injected patterns after tool use, domain inferred from file path
+    version: 1.0.0
+
+metadata:
+  license: MIT
+  tags:
+    - compute
+    - cursor
+    - patterns
+    - refresh

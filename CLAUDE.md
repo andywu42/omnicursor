@@ -54,10 +54,10 @@ Four behavior surfaces + one library:
 1. **Rules** (`.cursor/rules/`, 14 `.mdc`) — rules `00`–`03` are always-on; `10`+ activate
    on keyword match. Rules direct the model to read `skills/*.md` and to use hook-injected
    routing when present.
-2. **Hooks** (`.cursor/hooks/`) — 4 lifecycle events wired in `.cursor/hooks.json`, scripts
-   under `.cursor/hooks/scripts/`. Deterministic, no LLM. Each event is described by an
-   OmniClaude-shaped **node contract** (`src/omnicursor/nodes/*/contract.yaml`; 5 contracts
-   over 4 events — `beforeSubmitPrompt` has 2). See the hook table below.
+2. **Hooks** (`.cursor/hooks/`) — 7 lifecycle events wired in `.cursor/hooks.json`, scripts
+   under `.cursor/hooks/scripts/`, shared logic under `.cursor/hooks/lib/`. Deterministic,
+   no LLM. Each event is described by an OmniClaude-shaped **node contract**
+   (`src/omnicursor/nodes/*/contract.yaml`). See the hook table below.
 3. **Skills** (17) — dual-located (see "Adding a skill").
 4. **Agents** (`.cursor/agents/`, 17 JSON configs) — routing profiles.
 5. **Python library** (`src/omnicursor/`) — `get_agent_context`, `SkillRepository`,
@@ -68,16 +68,26 @@ Four behavior surfaces + one library:
 
 | Script (`.cursor/hooks/scripts/`) | Event | Behavior |
 |---|---|---|
-| `user-prompt-submit.py` | `beforeSubmitPrompt` | Classify prompt → emit agent + confidence + learned patterns (informational). |
-| `shell-guard.py` | `beforeShellExecution` | **Only** hook that can deny. Two tiers: **9 HARD_BLOCK** (deny), **12 SOFT_WARN** (allow + warn). Optional config-gated DoD/dispatch deny tiers, off by default. |
-| `post-edit.py` | `afterFileEdit` | Diagnostic only: `ruff check` on `.py`, `tsc --noEmit` on `.ts`/`.tsx`. **Never `--fix`, never modifies files.** |
-| `stop.py` | `stop` | Aggregate session events → outcome (`failed`/`success`/`abandoned`/`unknown`) via a 4-gate decision tree; write durable `~/.omnicursor/outbox.jsonl`. |
+| `session-start.py` | `sessionStart` | Session init + best-effort daemon-ensure + emit `session-started`. **Injects** session-level context (baseline patterns + delegation rule + prior session) via `additional_context` — Cursor's real injection channel. |
+| `user-prompt-submit.py` | `beforeSubmitPrompt` | Classify prompt → emit agent + confidence + relevant patterns for backend learning. **Block/observe-only** (`{continue, user_message}`); returns `{"continue": true}`. Does **not** inject — Cursor ignores `systemMessage` here. |
+| `shell-guard.py` | `beforeShellExecution` | **Only** hook that can deny. Returns `{permission: allow\|deny\|ask, user_message, agent_message}`. Two tiers: **9 HARD_BLOCK** (deny), **12 SOFT_WARN** (allow + warn). Optional config-gated DoD/dispatch deny tiers, off by default. |
+| `post-edit.py` | `afterFileEdit` | Diagnostic only: `ruff check` on `.py`, `tsc --noEmit` on `.ts`/`.tsx`; emit `tool-executed`. **Never `--fix`, never modifies files.** |
+| `post-tool-use.py` | `postToolUse` | **Refreshes** injected context via `additional_context` (patterns for the domain inferred from the tool's file path); emit `tool-executed`. |
+| `stop.py` | `stop` | Aggregate session events → outcome (`failed`/`success`/`abandoned`/`unknown`) via a 4-gate decision tree; write durable `~/.omnicursor/outbox.jsonl`. Loop-end signal. |
+| `session-end.py` | `sessionEnd` | Emit `session-ended` (true conversation close; complements `stop`'s loop-end). Fire-and-forget. |
 
-Active scripts are **stdlib-only** (no pip dependencies): they insert `src/` on `sys.path`
-and delegate to first-party `omnicursor.*` helpers (`shell_guard`, `file_edit`,
-`session_outcome`), which are the single source of truth — do not duplicate logic in the
-scripts. All hooks log to `~/.omnicursor/events.jsonl`; only `shell-guard` emits a
-`{"permission": "deny"}`.
+**Injection reality:** Cursor exposes exactly two live injection channels —
+`sessionStart.additional_context` (initial) and `postToolUse.additional_context`
+(refresh). `beforeSubmitPrompt` is block-only and CANNOT inject; per-prompt routing is
+emitted for backend learning, not injected. Shared context-assembly lives in
+`.cursor/hooks/lib/context_injection.py`.
+
+Active scripts are **stdlib-only** (no pip dependencies): they insert `.cursor/hooks/lib/`
+(and `src/` where needed) on `sys.path` and delegate to first-party helpers
+(`_common`, `context_injection`, `emit_client`, and `omnicursor.*` for `shell_guard` /
+`file_edit` / `session_outcome`), the single source of truth — do not duplicate logic in
+the scripts. All hooks log to `~/.omnicursor/events.jsonl` and emit best-effort events via
+the shared emit daemon; only `shell-guard` can return `{"permission": "deny"}`.
 
 ### Agent routing
 

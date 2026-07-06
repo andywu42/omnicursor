@@ -9,7 +9,6 @@ Informational only — Cursor ignores stdout. Always exits cleanly.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -35,7 +34,6 @@ from emit_client import send_event
 from omnicursor.pattern_writer import write_session_patterns
 from omnicursor.session_outcome import derive_session_outcome, format_recap
 from omnicursor.session_outbox import write_session_outcome
-from pattern_sync import sync_learned_patterns
 
 _RECAP_PATH: Path = Path.home() / ".omnicursor" / "last-recap.md"
 
@@ -285,12 +283,6 @@ def main() -> None:
                     )
                 except Exception:
                     pass
-        if os.environ.get("OMNICURSOR_PATTERN_SYNC_HTTP", "").lower() in (
-            "1",
-            "true",
-            "yes",
-        ):
-            sync_learned_patterns(LEARNED_PATTERNS_FILE)
     except Exception:
         pass
     write_stdout({})

@@ -15,6 +15,8 @@ _HANDLER_MODULES = (
     "omnicursor.nodes.node_cursor_file_edit_effect.handler",
     "omnicursor.nodes.node_cursor_session_outcome_orchestrator.handler",
     "omnicursor.nodes.node_cursor_pattern_injection_compute.handler",
+    "omnicursor.nodes.node_cursor_session_end_effect.handler",
+    "omnicursor.nodes.node_cursor_tool_use_compute.handler",
 )
 
 

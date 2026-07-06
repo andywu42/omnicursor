@@ -20,8 +20,12 @@ node_version:
 node_type: ORCHESTRATOR_GENERIC
 
 description: >
-  Classifies the user prompt against agent configs, emits systemMessage JSON to stdout,
-  and injects learned patterns. Cursor-native substitute for bus-dispatched skill routing.
+  Classifies the user prompt against agent configs and emits the classification
+  (matched agent, score, relevant pattern ids, delegation signal) for backend
+  learning. Block/observe-only: Cursor's beforeSubmitPrompt output is
+  {continue, user_message} and cannot inject context — this hook returns
+  {"continue": true}. Context injection lives in sessionStart / postToolUse
+  (node_cursor_pattern_injection_compute / node_cursor_tool_use_compute).
 
 cursor_native:
   hook_event: beforeSubmitPrompt
@@ -41,7 +45,7 @@ local_event_bus:
 
 capabilities:
   - name: cursor.prompt_classification
-    description: Merge-layer agent scoring + systemMessage emission
+    description: Merge-layer agent scoring + hook-event emission (no injection)
     version: 1.0.0
 
 metadata:
