@@ -28,6 +28,7 @@ from _common import (  # noqa: E402
     write_stdout,
 )
 from emit_client import send_event  # noqa: E402
+from redaction import redact_secrets, sanitize_preview  # noqa: E402
 from omnicursor.shell_guard import guard_command as _guard_command_impl  # noqa: E402
 
 _DOD_CONFIG_PATH: Path = _hooks / "config" / "dod_enforcement.json"
@@ -84,15 +85,19 @@ def main() -> None:
 
         hook_ms = int((time.monotonic() - _start) * 1000)
 
+        # The audit log persists to disk (~/.omnicursor/events.jsonl) and
+        # commands frequently carry tokens/URL creds — redact before logging
+        # (A5), then apply the audit-length caps to the redacted text.
+        redacted_command = redact_secrets(command)
         cmd_truncated = False
         if decision == "deny":
-            if len(command) > _MAX_DENIED_COMMAND_LOG_CHARS:
-                logged_command = command[:_MAX_DENIED_COMMAND_LOG_CHARS]
+            if len(redacted_command) > _MAX_DENIED_COMMAND_LOG_CHARS:
+                logged_command = redacted_command[:_MAX_DENIED_COMMAND_LOG_CHARS]
                 cmd_truncated = True
             else:
-                logged_command = command
+                logged_command = redacted_command
         else:
-            logged_command = command[:500]
+            logged_command = redacted_command[:500]
 
         payload: dict[str, Any] = {
             "event": "shell_guard",
@@ -109,17 +114,25 @@ def main() -> None:
             payload["command_truncated"] = True
         log_event(payload)
 
-        send_event(
-            "onex.evt.omnicursor.tool-executed.v1",
-            {
-                "conversation_id": conversation_id,
-                "correlation_id": correlation_id,
-                "tool_name": "shell",
-                "decision": decision,
-            },
-        )
-
+        # The decision goes to Cursor FIRST. Telemetry is emitted afterwards,
+        # isolated in its own try/except, so an emit failure can never reach
+        # the outer fallback and downgrade a computed deny/ask to allow.
         write_stdout(cursor_response)
+
+        try:
+            send_event(
+                "tool.executed",
+                {
+                    "session_id": conversation_id,
+                    "correlation_id": correlation_id,
+                    "tool_name": "shell",
+                    "decision": decision,
+                    "command_preview": sanitize_preview(command),
+                    "agent_source": "cursor",
+                },
+            )
+        except Exception:
+            pass
     except Exception:
         write_stdout({"permission": "allow"})
 

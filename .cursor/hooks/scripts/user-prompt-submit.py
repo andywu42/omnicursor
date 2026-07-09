@@ -11,7 +11,15 @@ the hook event, and returns ``{"continue": true}``.
 Session identity: the real ``sessionStart`` hook owns session initialization. This
 hook keeps a lightweight ``_init_session`` fallback for Cursor versions predating
 ``sessionStart`` (idempotent), plus per-prompt correlation + timestamp bookkeeping
-that stop-time aggregation reads.
+that stop-time aggregation reads. The same first-prompt gate doubles as the
+portable daemon-ensure fallback (``lib/daemon_ensure.py``) for surfaces where
+``sessionStart`` never fires.
+
+Emission (two-key privacy split): the full canonical ``ModelCursorHookEvent``
+dict — redacted prompt inside ``payload`` — goes under the semantic key
+``cursor.hook.prompt`` (registry fans it to the restricted intelligence cmd
+topic); a redacted ≤100-char preview goes under ``prompt.submitted`` (broadcast
+evt topic). Semantic keys only — the registry YAML owns the topic strings.
 
 Node contract: ``node_cursor_prompt_orchestrator``. Stdlib only; always exits 0;
 never blocks Cursor.
@@ -23,7 +31,6 @@ import datetime
 import re
 import sys
 import time
-import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -39,11 +46,12 @@ from _common import (  # noqa: E402
     write_stdout,
 )
 from agent_scoring import HARD_FLOOR, score_agent  # noqa: E402
+from canonical_event import build_cursor_event, generate_correlation_id  # noqa: E402
 from context_injection import agent_domain, fetch_patterns  # noqa: E402
+from daemon_ensure import ensure_daemon  # noqa: E402
 from emit_client import send_event  # noqa: E402
 from prompt_pattern_selection import MAX_PATTERNS, prompt_keyword_set  # noqa: E402
-
-DELEGATION_THRESHOLD: int = 2
+from redaction import redact_secrets, sanitize_preview  # noqa: E402
 
 # Verbs that suggest multi-deliverable, multi-step work.
 _COMPLEX_VERBS = frozenset({
@@ -117,7 +125,9 @@ def _session_dir(conversation_id: str) -> Optional[Path]:
 
 
 def _generate_correlation_id() -> str:
-    return uuid.uuid4().hex[:12]
+    """A full UUID string — the canonical ``correlation_id`` is ``UUID | None``,
+    so the truncated ``uuid4().hex[:12]`` form would fail backend validation."""
+    return generate_correlation_id()
 
 
 def _update_session_correlation(conversation_id: str, correlation_id: str) -> None:
@@ -139,14 +149,19 @@ def _update_session_correlation(conversation_id: str, correlation_id: str) -> No
         pass
 
 
-def _init_session_fallback(conversation_id: str) -> None:
-    """Idempotent session-init fallback for Cursor versions predating sessionStart."""
+def _init_session_fallback(conversation_id: str) -> bool:
+    """Idempotent session-init fallback for Cursor versions predating sessionStart.
+
+    Returns True only when this call performed the one-time initialization
+    (i.e. this is the conversation's first prompt) — callers use it to gate
+    other once-per-conversation fallbacks, like the daemon-ensure.
+    """
     d = _session_dir(conversation_id)
     if not d:
-        return
+        return False
     flag = d / "session_initialized"
     if flag.exists():
-        return
+        return False
     try:
         flag.touch()
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -162,7 +177,8 @@ def _init_session_fallback(conversation_id: str) -> None:
             sessions_root=SESSIONS_DIR,
         )
     except OSError:
-        pass
+        return False
+    return True
 
 
 def _bump_session_prompt_timestamp(conversation_id: str) -> None:
@@ -192,9 +208,16 @@ def main() -> None:
         domain = agent_domain(agent_name)
 
         # Session bookkeeping (init fallback + correlation + timestamp).
-        _init_session_fallback(conversation_id)
+        first_prompt = _init_session_fallback(conversation_id)
         _bump_session_prompt_timestamp(conversation_id)
         _update_session_correlation(conversation_id, correlation_id)
+
+        # Portable daemon-ensure fallback for surfaces where sessionStart never
+        # fires (older Cursor builds, CLI): once per conversation, on the first
+        # prompt. Mirrors sessionStart's background-agent guard (§1a.4);
+        # ensure_daemon never blocks and degrades to a no-op.
+        if first_prompt and not data.get("is_background_agent", False):
+            ensure_daemon()
 
         # Relevant patterns are recorded for backend utilization scoring — NOT
         # injected here (Cursor cannot inject at beforeSubmitPrompt; that happens
@@ -221,35 +244,43 @@ def main() -> None:
             "patterns_injected": len(relevant_pattern_ids),
             "injected_pattern_ids": relevant_pattern_ids,
             "delegation_required": delegation_required,
-            "prompt_snippet": prompt[:100],
+            "prompt_snippet": sanitize_preview(prompt),
             "hook_duration_ms": hook_ms,
         })
 
+        # Full canonical event (redacted prompt inside payload) -> restricted
+        # cmd topic. delegation_required rides inside payload — there is no
+        # separate delegation topic/consumer.
         send_event(
-            "onex.cmd.omnicursor.cursor-hook-event.v1",
+            "cursor.hook.prompt",
+            build_cursor_event(
+                "beforeSubmitPrompt",
+                conversation_id,
+                {
+                    "prompt": redact_secrets(prompt),
+                    "generation_id": generation_id,
+                    "matched_agent": agent_name,
+                    "score": round(score, 4),
+                    "reason": reason,
+                    "patterns_injected": len(relevant_pattern_ids),
+                    "injected_pattern_ids": relevant_pattern_ids,
+                    "delegation_required": delegation_required,
+                },
+                correlation_id=correlation_id,
+            ),
+        )
+        # Redacted ≤100-char preview -> broadcast evt topic (never the full
+        # prompt; the registry's strip_prompt is defense-in-depth only).
+        send_event(
+            "prompt.submitted",
             {
-                "hook": "beforeSubmitPrompt",
-                "conversation_id": conversation_id,
+                "session_id": conversation_id,
+                "prompt_preview": sanitize_preview(prompt),
+                "prompt_length": len(prompt),
                 "correlation_id": correlation_id,
-                "generation_id": generation_id,
-                "matched_agent": agent_name,
-                "score": round(score, 4),
-                "reason": reason,
-                "patterns_injected": len(relevant_pattern_ids),
-                "injected_pattern_ids": relevant_pattern_ids,
-                "delegation_required": delegation_required,
+                "agent_source": "cursor",
             },
         )
-        if delegation_required:
-            send_event(
-                "onex.cmd.omnicursor.node-delegation-request.v1",
-                {
-                    "conversation_id": conversation_id,
-                    "correlation_id": correlation_id,
-                    "prompt_excerpt": prompt[:2000],
-                    "target_orchestrator": "node_delegation_orchestrator",
-                },
-            )
     except Exception:
         pass
 
