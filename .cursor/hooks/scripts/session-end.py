@@ -22,15 +22,23 @@ sys.path.insert(0, str(_hooks / "lib"))
 sys.path.insert(0, str(_hooks.parent.parent / "src"))
 
 from _common import (  # noqa: E402
+    hook_enabled,
     log_event,
     read_session_context,
     read_stdin,
     write_stdout,
 )
 from emit_client import send_event  # noqa: E402
+from redaction import redact_secrets  # noqa: E402
 
 
 def main() -> None:
+    # A6 kill-switch/mask — short-circuit before ANY side effect (stdin read,
+    # local log, emit).
+    if not hook_enabled("session-end"):
+        write_stdout({})
+        return
+
     _start = time.monotonic()
     try:
         data = read_stdin()
@@ -67,7 +75,9 @@ def main() -> None:
                 "reason": reason,
                 "final_status": final_status,
                 "duration_ms": duration_ms,
-                "error_message": error_message or None,
+                # Error text often carries tokens/URL creds/stack detail —
+                # redact before it leaves the machine (A5).
+                "error_message": redact_secrets(error_message) if error_message else None,
                 "agent_source": "cursor",
             },
         )
