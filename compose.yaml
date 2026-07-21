@@ -110,9 +110,13 @@ services:
             git curl ca-certificates \
             && rm -rf /var/lib/apt/lists/*
         RUN pip install --no-cache-dir uv==0.5.0
-        COPY pyproject.toml README.md uv.lock* ./
+        COPY pyproject.toml README.md uv.lock ./
         COPY src/ src/
-        RUN uv pip install --system --no-cache -e .
+        # uv sync (not uv pip install) so [tool.uv.sources] git pins resolve:
+        # omnibase-infra/omnimarket are not installable from PyPI at the pinned
+        # versions. UV_PROJECT_ENVIRONMENT targets the system interpreter.
+        ENV UV_PROJECT_ENVIRONMENT=/usr/local
+        RUN uv sync --frozen --no-dev --no-cache
         ENV PYTHONPATH=/app/src
         ENV OMNIINTELLIGENCE_ALLOW_DEFAULT_KAFKA=true
         EXPOSE 8000
@@ -151,9 +155,13 @@ services:
             git curl ca-certificates \
             && rm -rf /var/lib/apt/lists/*
         RUN pip install --no-cache-dir uv==0.5.0
-        COPY pyproject.toml README.md uv.lock* ./
+        COPY pyproject.toml README.md uv.lock ./
         COPY src/ src/
-        RUN uv pip install --system --no-cache -e .
+        # uv sync (not uv pip install) so [tool.uv.sources] git pins resolve:
+        # omnibase-infra/omnimarket are not installable from PyPI at the pinned
+        # versions. UV_PROJECT_ENVIRONMENT targets the system interpreter.
+        ENV UV_PROJECT_ENVIRONMENT=/usr/local
+        RUN uv sync --frozen --no-dev --no-cache
         ENV PYTHONPATH=/app/src
         ENV OMNIINTELLIGENCE_ALLOW_DEFAULT_KAFKA=true
         EXPOSE 8000
@@ -198,9 +206,13 @@ services:
             git curl ca-certificates \
             && rm -rf /var/lib/apt/lists/*
         RUN pip install --no-cache-dir uv==0.5.0
-        COPY pyproject.toml README.md uv.lock* ./
+        COPY pyproject.toml README.md uv.lock ./
         COPY src/ src/
-        RUN uv pip install --system --no-cache -e .
+        # uv sync (not uv pip install) so [tool.uv.sources] git pins resolve:
+        # omnibase-infra/omnimarket are not installable from PyPI at the pinned
+        # versions. UV_PROJECT_ENVIRONMENT targets the system interpreter.
+        ENV UV_PROJECT_ENVIRONMENT=/usr/local
+        RUN uv sync --frozen --no-dev --no-cache
         ENV PYTHONPATH=/app/src
         ENV OMNIINTELLIGENCE_ALLOW_DEFAULT_KAFKA=true
         EXPOSE 8000
